@@ -1,0 +1,337 @@
+El programa de nidhi utiliza los siguientes csvs:
+
+* strategy_specific_cb_files/lvst_tlu_conversions.csv
+
+
+* ../attribute_strategy_code.csv
+#maps strategies to transformations, from James
+#This file tells us which transformation in is in each strategy
+
+El archivo contiene un csv donde las filas corresponden al código de la estrategia y las columnas a la transformaciones activas. 
+
+El archivo tiene 129 estrategias y 67 transformaciones.
+
+El archivo cb_status_ejecuciones contiene las estrategias que fueron ejecutadas exitosamente por el programa de costos y beneficios.
+
+De 65 estrategias ejecutadas, 26 resultaron exitosas y 39 fallidas. Las 26 estrategias exitosas se encuentran definidas en el archivo attribute_strategy_code.csv
+
+                                             strategy                  strategy_code
+0                       AGRC: Improve rice management              AGRC:DEC_CH4_RICE
+1                   LVST: Reduce enteric fermentation  LVST:DEC_ENTERIC_FERMENTATION
+2                   CCSQ: Increase direct air capture          CCSQ:INCREASE_CAPTURE
+3                              FGTV: Maximize flaring                 FGTV:INC_FLARE
+4                                FGTV: Minimize leaks                 FGTV:DEC_LEAKS
+5   INEN: Fuel switch low-temp thermal processes t...       INEN:FUEL_SWITCH_LO_HEAT
+6   INEN: Fuel switch medium and high-temp thermal...       INEN:FUEL_SWITCH_HI_HEAT
+7         INEN: Maximize industrial energy efficiency     INEN:INC_EFFICIENCY_ENERGY
+8                 SCOE: Increase appliance efficiency  SCOE:INC_EFFICIENCY_APPLIANCE
+9   SCOE: Reduce end-use demand for heat energy by...           SCOE:DEC_DEMAND_HEAT
+10  SCOE: Switch to electricity for heat using hea...          SCOE:FUEL_SWITCH_HEAT
+11          TRNS: Electrify light duty road transport    TRNS:FUEL_SWITCH_LIGHT_DUTY
+12                               TRNS: Electrify rail          TRNS:FUEL_SWITCH_RAIL
+13                         TRNS: Fuel switch maritime      TRNS:FUEL_SWITCH_MARITIME
+14       TRNS: Fuel switch medium duty road transport   TRNS:FUEL_SWITCH_MEDIUM_DUTY
+15                        IPPU: Reduce cement clinker               IPPU:DEC_CLINKER
+16               IPPU: Reduce Nitrous Oxide emissions                   IPPU:DEC_N2O
+17           IPPU: Reduce other fluorinated compounds             IPPU:DEC_OTHER_FCS
+18                           IPPU: Reduce use of HFCs                  IPPU:DEC_HFCS
+19                           IPPU: Reduce use of PFCs                  IPPU:DEC_PFCS
+20                              PFLO: Better baseline               PFLO:BETTER_BASE
+21                              PFLO: Healthier diets              PFLO:BETTER_DIETS
+22                     PFLO: Change consumer behavior        PFLO:CHANGE_CONSUMPTION
+23             PFLO: Industrial point of capture CCSQ               PFLO:IND_INC_CCS
+24  PFLO: Supply side technologies and transformat...          PFLO:SUPPLY_SIDE_TECH
+25                          PFLO: All transformations                       PFLO:ALL
+
+Para el caso de las 39 fallidas, 37 se encuentran definidas en el archivo attribute_strategy_code.csv. Las estrategias {'AGRC:INC_CONSERVATION_AGRICULTURE', 'LNDU:INC_REFORESTATION'}
+no se encuentran definidas.
+
+* ../strategy_cost_instructions.csv
+#tells us which strategies to evaluate costs and benefit sfor
+
+El archivo strategy_cost_instructions.csv contiene un listado de estrategias con un par de columnas (evaluate_system_costs y evaluate_transformation_costs) que indican si
+se evalua el sistema de costos así como los costos de las transformaciones. En total, se encuentran definidas 65 estrategias. De las 26 estrategias exitosas, las 26
+se encuentran en el archivo. De las 39 fallidas, 20 se encuentran definidas en el archivo:
+
+"TRNS:MODE_SHIFT_REGIONAL",
+"TRNS:MODE_SHIFT_PASSENGER",
+"TRNS:MODE_SHIFT_FREIGHT",
+"TRNS:INC_OCCUPANCY",
+"INEN:INC_EFFICIENCY_PRODUCTION",
+"ENTC:TARGET_RENEWABLE_ELEC",
+"ENTC:LEAST_COST",
+"IPPU:DEC_DEMAND",
+"WALI:INC_TREATMENT_INDUSTRIAL",
+"WALI:INC_TREATMENT_RURAL",
+"WALI:INC_TREATMENT_URBAN",
+"WASO:INC_ANAEROBIC_AND_COMPOST",
+"WASO:INC_LANDFILLING",
+"WASO:INC_RECYCLING",
+"WASO:INC_ENERGY_FROM_BIOGAS",
+"WASO:INC_ENERGY_FROM_INCINERATION",
+"WASO:INC_CAPTURE_BIOGAS",
+"TRWW:INC_CAPTURE_BIOGAS",
+"SOIL:DEC_N_APPLIED",
+"AGRC:DEC_EXPORTS"
+
+Las siguiente 19 no se encuentran definidas en el archivo:
+
+'AGRC:DEC_LOSSES_SUPPLY_CHAIN',
+'AGRC:INC_CONSERVATION_AGRICULTURE',
+'AGRC:INC_PRODUCTIVITY',
+'ENTC:DEC_LOSSES',
+'LNDU:DEC_DEFORESTATION',
+ 'LNDU:INC_LAND_REHABILITIATION',
+ 'LNDU:INC_REFORESTATION',
+ 'LNDU:INC_SILVOPASTURE',
+ 'LSMM:INC_CAPTURE_BIOGAS',
+ 'LSMM:INC_MANAGEMENT_CATTLE_PIGS',
+ 'LSMM:INC_MANAGEMENT_OTHER',
+ 'LSMM:INC_MANAGEMENT_POULTRY',
+ 'LVST:DEC_EXPORTS',
+ 'LVST:INC_PRODUCTIVITY',
+ 'SOIL:DEC_LIME_APPLIED',
+ 'TRDE:DEC_DEMAND',
+ 'TRNS:INC_EFFICIENCY',
+ 'TRWW:INC_COMPLIANCE_SEPTIC',
+ 'WASO:DEC_CONSUMER_FOOD_WASTE'
+ 
+
+* ../system_cost_factors_list.csv
+#the list of all the cost factor files in the system, and the functions they should be evaluated with
+
+El archivo system_cost_factors_list.csv mapea la función de costos y el archivo csv asociado con los factores de costos 
+
+                                 system_cost_filename  include               cb_function
+0                    entc_production_cost_factors.csv        1     cb_apply_cost_factors
+1                          enfu_fuel_cost_factors.csv        1      cb_system_fuel_costs
+2                   enfu_sector_fuel_cost_factors.csv        1     cb_apply_cost_factors
+3                 entc_air_pollution_cost_factors.csv        1     cb_apply_cost_factors
+4                 trns_air_pollution_cost_factors.csv        1     cb_apply_cost_factors
+5                    trns_congestion_cost_factors.csv        1     cb_apply_cost_factors
+6                   trns_road_safety_cost_factors.csv        1     cb_apply_cost_factors
+7           trns_passenger_transport_cost_factors.csv        1     cb_apply_cost_factors
+8             trns_freight_transport_cost_factors.csv        1     cb_apply_cost_factors
+9                 inen_air_pollution_cost_factors.csv        1     cb_apply_cost_factors
+10           ippu_avoided_production_cost_factors.csv        1     cb_apply_cost_factors
+11  ippu_avoided_air_pollution_cement_cost_factors...        1     cb_apply_cost_factors
+12                    trww_treatment_cost_factors.csv        1     cb_apply_cost_factors
+13    trww_treatment_water_pollution_cost_factors.csv        1     cb_apply_cost_factors
+14                   wali_sanitation_cost_factors.csv        1  cb_wali_sanitation_costs
+15             waso_waste_management_cost_factors.csv        1     cb_apply_cost_factors
+16             waso_waste_collection_cost_factors.csv        1     cb_apply_cost_factors
+17              waso_waste_to_energy_cost_factors.csv        1     cb_apply_cost_factors
+18                    waso_pollution_cost_factors.csv        1     cb_apply_cost_factors
+19              trww_waste_to_energy_cost_factors.csv        1     cb_apply_cost_factors
+20   afolu_crop_livestock_production_cost_factors.csv        1     cb_apply_cost_factors
+21          afolu_ecosystem_services_cost_factors.csv        1     cb_apply_cost_factors
+22            soil_nitrogen_and_lime_cost_factors.csv        1     cb_apply_cost_factors
+23           entc_sector_electricity_cost_factors.csv        0     cb_apply_cost_factors
+24              lsmm_waste_to_energy_cost_factors.csv        1     cb_apply_cost_factors
+
+
+* ../transformation_cost_definitions.csv
+
+El archivo transformation_cost_definitions.csv mapea cada estrategia con los factores de costos de implementar alguna de las estrategias. La estrategia de estimacion
+de costos se basa en utilizar distintas funciones de costos por transformacion:
+
+'cb_agrc_lvst_productivity',
+ 'cb_agrc_rice_mgmt',
+ 'cb_difference_between_two_strategies',
+ 'cb_entc_reduce_losses',
+ 'cb_fgtv_abatement_costs',
+ 'cb_fraction_change',
+ 'cb_ippu_clinker',
+ 'cb_ippu_florinated_gases',
+ 'cb_ippu_inen_ccs',
+ 'cb_lvst_enteric',
+ 'cb_manure_management_cost',
+ 'cb_pflo_healthier_diets',
+ 'cb_scale_variable_in_strategy',
+ 'cb_waso_reduce_consumer_facing_food_waste'
+
+A continuación describo en qué consisten las funciones de costo:
+
+------------------------------------------------------------------------------------
+**** cb_agrc_lvst_productivity
+
+%% Descripción
+#----------AGRCLVST:Productivity----------
+The economic cost of increasing productivity is equal to some percent of GDP defined in file
+
+%% Datos insumo
+'strategy_specific_cb_files/AGRC_LVST_productivity_cost_gdp.csv'
+-------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_agrc_rice_mgmt
+%% Descripción
+#----------AGRC:RICE------------
+Define the transformation as the fraction of acres receiivng better rice management
+
+%% Datos insumo
+'strategy_specific_cb_files/AGRC_rice_mgmt_tx.csv'
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_difference_between_two_strategies
+%% Descripción
+This function calculates the costs adn benefits as a multiplier applied to the difference in a variable between two strategies
+
+La función es utilizada en las siguientes funciones de costo:
+- cb_waso_waste_reduction_technical_costs
+- cb_ippu_clinker
+- cb_apply_cost_factors
+
+%% Datos insumo
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_entc_reduce_losses
+%% Descripción
+#----------ENTC:REDUCE_LOSSES: Technical cost of maintaining grid ----------
+
+%% Datos insumo
+'strategy_specific_cb_files/ENTC_REDUCE_LOSSES_cost_file.xlsx'
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_fgtv_abatement_costs
+%% Descripción
+#--------------FGTV: ALL COSTS ------------
+This function calculates the cost of abating fugitive emissions.
+(1) calculates the "fugitive emissions intensity" as the fugitive emissions per unit of energy consumed in each time period in the baseline
+(2) calculates the "expected fugitive emissions" in a transformed future by multiplying that intensity by the energy consumed in the transformed future
+(3) calculates "fugitive emissions abated"  as difference between "expected fugitive emissions" and actual emissions
+(4) calculates "cost of abatement" as quantity abated * cost of abatement
+
+%% Datos insumo
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_fraction_change
+%% Descripción
+This function calculates the costs adn benefits as a multiplier applied to the
+difference in a variable between two strategies, where that difference is
+defined by some change in a factor, e.g., km/l or tons-waste/person. frac_var
+gives the name of the variable that has the fraction. Invert tells us whether we
+need to flip the fractions ot make our calculation correct. If our effect variable
+is already in the denominator of our fraction (e.g., effect in L, fraction is km/L) then
+we are good. If the effect variable is in the numerator (e.g., effect in T, fraction is T/person) then we need to flip it.
+
+To be specific, let E_tx be the effect we observe (e.g., L of fuel) in the transformation
+let f_base and f_tx be the fractions of km/L in the base and transformed futures
+then the distance that has been traveled in the transformation, d_tx = E_tx*f_tx. 
+traveling that same distance with the old efficiency would have required 
+E_base = d_tx/f_base L. So, E_tx-E_base = E_tx - d_tx/f_base = E_tx - Etx*f_tx/f_base = E_tx(1-ftx/f_base)
+
+%% Datos insumo
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_ippu_clinker
+%% Descripción
+#----------IPPU:CLINKER------------------
+
+%% Datos insumo
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_ippu_florinated_gases
+%% Descripción
+#----------IPPU:FGASES-------------------
+
+%% Datos insumo
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_ippu_inen_ccs
+%% Descripción
+
+
+%% Datos insumo
+'strategy_specific_cb_files/ippu_ccs_cost_factors.csv'
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_lvst_enteric
+%% Descripción
+#----------LVST: ENTERIC FERMENTATION------------------
+
+%% Datos insumo
+'strategy_specific_cb_files/LVST_enteric_fermentation_tx.csv'
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_manure_management_cost
+%% Descripción
+#---------------Manure Management
+
+%% Datos insumo
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_pflo_healthier_diets
+%% Descripción
+#--------------PFLO:BETTER DIETS------------
+Calculate the number of additional people using better diets
+for each such person, there is a $370 cost savings in groceries and  $1000/yr cost savings in health
+
+%% Datos insumo
+'strategy_specific_cb_files/PFLO_transition_to_new_diets.csv'
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_scale_variable_in_strategy
+%% Descripción
+This function calculates costs and benefits as just a scalar applied to a variable within
+a single strategy. It uses code from cb_difference_between_two_strategies, so the use of
+data_merged, for example, is holdover from that function.
+
+%% Datos insumo
+
+------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+**** cb_waso_reduce_consumer_facing_food_waste
+%% Descripción
+#----------WASO:WASTE REDUCTION TECHNICAL COSTS------------------
+
+This function calculates consumer food waste avoided, which includes everythign after
+the retailer. From james:
+
+- consumer_food_waste_avoided = (qty_waso_total_food_produced_tonne - qty_agrc_food_produced_lost_sent_to_msw_tonne) * 
+(1 - factor_waso_waste_per_capita_scalar_food)/factor_waso_waste_per_capita_scalar_food
+
+
+%% Datos insumo
+
+------------------------------------------------------------------------------------
+
+* ../strategy_interaction_definitions.csv
+
+El archivo strategy_interaction_definitions.csv contiene los siguientes datos: 
+
+   interaction_name                 transformation_code                                          variable  relative_effect  scale_variable
+0              SCOE    TX:SCOE:INC_EFFICIENCY_APPLIANCE       cb:scoe:technical_cost:efficiency:appliance         0.900000               1
+1              SCOE            TX:SCOE:FUEL_SWITCH_HEAT     cb:scoe:technical_cost:fuel_switch:heat_pumps         0.050000               1
+2              SCOE            TX:SCOE:FUEL_SWITCH_HEAT  cb:scoe:technical_savings:fuel_switch:heat_pumps         0.050000               1
+3              SCOE             TX:SCOE:DEC_DEMAND_HEAT  cb:scoe:technical_cost:efficiency:building_shell         0.050000               1
+4              INEN         TX:INEN:FUEL_SWITCH_LO_HEAT        cb:inen:technical_cost:fuel_switch:lo_heat         0.381330               1
+5              INEN         TX:INEN:FUEL_SWITCH_LO_HEAT     cb:inen:technical_savings:fuel_switch:lo_heat         0.381330               1
+6              INEN         TX:INEN:FUEL_SWITCH_HI_HEAT        cb:inen:technical_cost:fuel_switch:hi_heat         0.074188               1
+7              INEN         TX:INEN:FUEL_SWITCH_HI_HEAT     cb:inen:technical_savings:fuel_switch:hi_heat         0.074188               1
+8              INEN  TX:INEN:FUEL_SWITCH_HI_AND_LO_HEAT            cb:inen:technical_cost:fuel_switch:all         0.455518               1
+9              INEN  TX:INEN:FUEL_SWITCH_HI_AND_LO_HEAT         cb:inen:technical_savings:fuel_switch:all         0.455518               1
+10             INEN       TX:INEN:INC_EFFICIENCY_ENERGY               cb:inen:technical_cost:efficiency:X         0.359817               1
+11             INEN                  TX:IPPU:DEC_DEMAND          cb:ippu:value:industrial_products:cement         0.184666               0
