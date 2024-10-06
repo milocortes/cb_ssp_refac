@@ -25,11 +25,76 @@ class StrategySpecificCBFile(Enum):
     def extension(self) -> str:
         return self.value[1]
 
+class DefinitionCBFile(Enum):
+    """
+    Enum que define los archivos de definición del módulo de costos y beneficios.
+    """
+
+    STRATEGY2TX = ("attribute_strategy_code", "csv") #This file tells us which transformation in is in each strategy
+    STRATEGY_COST_INSTRUCTIONS = ("strategy_cost_instructions", "csv") #tells us which strategies to evaluate costs and benefit if for
+    COST_FACTOR_NAMES = ("system_cost_factors_list", "csv") #the list of all the cost factor files in the system, and the functions they should be evaluated with
+    TRANSFORMATION_COST_DEFINITIONS = ("transformation_cost_definitions", "csv") #defines how each transformation is evaluated, including difference variables, cost multipliers, etc.
+
+    def __str__(self) -> str:
+        return self.name
+
+    def file_name(self) -> str:
+        return self.value[0]   
+
+    def extension(self) -> str:
+        return self.value[1]
+
+class CostFactorCBFile(Enum):
+    """
+    Enum que define los archivos con los factores de costos.
+    """
+
+    AFOLU_CROP_LIVESTOCK_PRODUCTION_COST_FACTORS = ("afolu_crop_livestock_production_cost_factors", "csv")
+    AFOLU_ECOSYSTEM_SERVICES_COST_FACTORS = ("afolu_ecosystem_services_cost_factors", "csv")
+    ENFU_FUEL_COST_FACTORS = ("enfu_fuel_cost_factors", "csv")
+    ENFU_FUEL_COST_FACTORS_DETAIL = ("enfu_fuel_cost_factors_detail", "csv")
+    ENFU_SECTOR_FUEL_COST_FACTORS = ("enfu_sector_fuel_cost_factors", "csv")
+    ENTC_AIR_POLLUTION_COST_FACTORS = ("entc_air_pollution_cost_factors", "csv")
+    ENTC_PRODUCTION_COST_FACTORS = ("entc_production_cost_factors", "csv")
+    ENTC_SECTOR_ELECTRICITY_COST_FACTORS = ("entc_sector_electricity_cost_factors", "csv")
+    GHG_EFFECTS_FACTORS = ("ghg_effects_factors", "csv")
+    INEN_AIR_POLLUTION_COST_FACTORS = ("inen_air_pollution_cost_factors", "csv")
+    IPPU_AVOIDED_AIR_POLLUTION_CEMENT_COST_FACTORS = ("ippu_avoided_air_pollution_cement_cost_factors", "csv")
+    IPPU_AVOIDED_PRODUCTION_COST_FACTORS = ("ippu_avoided_production_cost_factors", "csv")
+    LSMM_WASTE_TO_ENERGY_COST_FACTORS = ("lsmm_waste_to_energy_cost_factors", "csv")
+    SOIL_NITROGEN_AND_LIME_COST_FACTORS = ("soil_nitrogen_and_lime_cost_factors", "csv")
+    TRNS_AIR_POLLUTION_COST_FACTORS = ("trns_air_pollution_cost_factors", "csv")
+    TRNS_CONGESTION_COST_FACTORS = ("trns_congestion_cost_factors", "csv")
+    TRNS_FREIGHT_TRANSPORT_COST_FACTORS = ("trns_freight_transport_cost_factors", "csv")
+    TRNS_PASSENGER_TRANSPORT_COST_FACTORS = ("trns_passenger_transport_cost_factors", "csv")
+    TRNS_ROAD_SAFETY_COST_FACTORS = ("trns_road_safety_cost_factors", "csv")
+    TRWW_TREATMENT_COST_FACTORS = ("trww_treatment_cost_factors", "csv")
+    TRWW_TREATMENT_WATER_POLLUTION_COST_FACTORS = ("trww_treatment_water_pollution_cost_factors", "csv")
+    TRWW_WASTE_TO_ENERGY_COST_FACTORS = ("trww_waste_to_energy_cost_factors", "csv")
+    WALI_BENEFIT_OF_SANITATION_COST_FACTORS = ("wali_benefit_of_sanitation_cost_factors", "csv")
+    WALI_SANITATION_COST_FACTORS = ("wali_sanitation_cost_factors", "csv")
+    WASO_POLLUTION_COST_FACTORS = ("waso_pollution_cost_factors", "csv")
+    WASO_WASTE_COLLECTION_COST_FACTORS = ("waso_waste_collection_cost_factors", "csv")
+    WASO_WASTE_MANAGEMENT_COST_FACTORS = ("waso_waste_management_cost_factors", "csv")
+    WASO_WASTE_TO_ENERGY_COST_FACTORS = ("waso_waste_to_energy_cost_factors", "csv")
+
+    def __str__(self) -> str:
+        return self.name
+
+    def file_name(self) -> str:
+        return self.value[0]   
+
+    def extension(self) -> str:
+        return self.value[1]
+
+
 class CBDirectoryPath(Enum):
     """
     Enum que define el directorio específico a cada grupo de archivos.
     """
     StrategySpecificCBFile = "strategy_specific_cb_files"
+    DefinitionCBFile = "definition_files"
+    CostFactorCBFile = "cost_factors"
 
     def directory_name(self) -> str:
         return self.value   
@@ -54,13 +119,32 @@ class CBFilesReader:
             logger: Union[logging.Logger, None] = None
         ):
         
-        # Inicializamos el Reader con los datos en cada Enum
+        #------ Inicializamos el Reader con los datos en cada Enum
+
+        # Load Strategy Specific Files
         self.StrategySpecificCBData = self.read_files_on_enum(StrategySpecificCBFile, 
                                            [
                                             data_file_path,
                                             CBDirectoryPath.StrategySpecificCBFile.directory_name()
                                            ],
                                            logger)
+
+        # Load Definition Files
+        self.DefinitionCBFile = self.read_files_on_enum(DefinitionCBFile, 
+                                           [
+                                            data_file_path,
+                                            CBDirectoryPath.DefinitionCBFile.directory_name()
+                                           ],
+                                           logger)
+                                           
+        # Load Cost Factor Files
+        self.CostFactorCBFile = self.read_files_on_enum(CostFactorCBFile, 
+                                           [
+                                            data_file_path,
+                                            CBDirectoryPath.CostFactorCBFile.directory_name()
+                                           ],
+                                           logger)
+
 
     ##############################################
 	#------ FUNCIONES DE INICIALIZACION	   ------#
@@ -88,7 +172,8 @@ class CBFilesReader:
 
             # Verifica si el archivo se encuentra en la ruta definida
             if os.path.isfile(DATA_FILE_PATH):
-                logger.info(f"El archivo {FILE_NAME} EXISTE")
+                if logger:
+                    logger.info(f"El archivo {FILE_NAME} EXISTE")
                 try:
                     if cb_file.extension() == "csv":
                         # Cargamos archivo en formato csv
@@ -103,13 +188,16 @@ class CBFilesReader:
                             DATA_FILE_PATH
                         )
 
-                    logger.warning(f"El archivo {FILE_NAME} se cargó correctamente")
+                    if logger:
+                        logger.warning(f"El archivo {FILE_NAME} se cargó correctamente")
                 except:
-                    logger.warning(f"No fue posible cargar el archivo {FILE_NAME}")
-                    #raise Exception(f"No fue posible cargar el archivo {FILE_NAME}") 
+                    if logger:
+                        logger.warning(f"No fue posible cargar el archivo {FILE_NAME}")
+                        #raise Exception(f"No fue posible cargar el archivo {FILE_NAME}") 
 
             else:
-                logger.warning(f"El archivo {DATA_FILE_PATH} NO EXISTE")
+                if logger:
+                    logger.warning(f"El archivo {DATA_FILE_PATH} NO EXISTE")
 
 
         return  cb_data_enum

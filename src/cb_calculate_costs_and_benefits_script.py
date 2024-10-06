@@ -7,12 +7,13 @@
 from general_ssp_utilities import *
 from cb_config import *
 import pandas as pd 
+import os 
 import re 
 
 #-------------READ THE DATA-----------------
-data_filename = "/home/milo/Documents/egtp/SISEPUEDE/sisepuede_data/country_profiles/india/ssp_india/opt/SSP_RESULTS/sisepuede_results_sisepuede_run_ssp.csv"
-primary_filename = "/home/milo/Documents/egtp/SISEPUEDE/sisepuede_data/country_profiles/india/ssp_india/opt/SSP_RESULTS/ATTRIBUTE_PRIMARY.csv"
-strategy_filename = "/home/milo/Documents/egtp/SISEPUEDE/sisepuede_data/country_profiles/india/ssp_india/opt/SSP_RESULTS/ATTRIBUTE_STRATEGY.csv"
+data_filename = "/home/milo/Documents/egtp/SISEPUEDE/CB/path_to_model_results/sisepuede_results_sisepuede_run_ssp.csv"
+primary_filename = "/home/milo/Documents/egtp/SISEPUEDE/CB/path_to_model_results/ATTRIBUTE_PRIMARY.csv"
+strategy_filename = "/home/milo/Documents/egtp/SISEPUEDE/CB/path_to_model_results/ATTRIBUTE_STRATEGY.csv"
 
 output_file = pd.read_csv(data_filename)
 
@@ -36,7 +37,7 @@ cols_to_keep = [string for string in cols_to_keep if not re.match(re.compile('to
 data = data[cols_to_keep]
 
 #add calculation of total TLUs to data
-TLU_CONVERSION_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/local_exec/sisepuede_costs_benefits/strategy_specific_cb_files/lvst_tlu_conversions.csv"
+TLU_CONVERSION_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/data/strategy_specific_cb_files/lvst_tlu_conversions.csv"
 tlu_conversions = pd.read_csv(TLU_CONVERSION_PATH)
 
 pop_livestock = data[SSP_GLOBAL_SIMULATION_IDENTIFIERS + [i for i in cols_to_keep if "pop_lvst" in i]]
@@ -56,3 +57,25 @@ data = data.merge(right = pop_livestock_summarized, on = SSP_GLOBAL_SIMULATION_I
 data.loc[data["strategy_code"] == "PFLO:SOCIOTECHNICAL", "strategy_code"] = "PFLO:CHANGE_CONSUMPTION"
 SSP_GLOBAL_list_of_strategies = data["strategy_code"].unique()
 SSP_GLOBAL_list_of_variables = list(set(data.columns) - set(SSP_GLOBAL_SIMULATION_IDENTIFIERS))
+
+#-------------REMOVE BASE FOR COST BENEFIT ANALYSIS------------
+data = data.query("strategy_code!='BASE'").reset_index(drop=True)
+
+#-------------READ DEFINITION FILES IN AND CALCULATE COSTS AND BENEFITS----------
+
+#maps strategies to transformations, from James
+#This file tells us which transformation in is in each strategy
+STRATEGY_SPECIFIC_CB_FILES = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/data/definition_files"
+
+strategy2tx = pd.read_csv(os.path.join(STRATEGY_SPECIFIC_CB_FILES, 'attribute_strategy_code.csv'))
+
+#tells us which strategies to evaluate costs and benefit iffor
+strategy_cost_instructions = pd.read_csv(os.path.join(STRATEGY_SPECIFIC_CB_FILES, 'strategy_cost_instructions.csv'))
+
+#the list of all the cost factor files in the system, and the functions they should be evaluated with
+cost_factor_names = pd.read_csv(os.path.join(STRATEGY_SPECIFIC_CB_FILES, 'system_cost_factors_list.csv'))  
+
+#defines how each transformation is evaluated, including difference variables, cost multipliers, etc.
+transformation_cost_definitions = pd.read_csv(os.path.join(STRATEGY_SPECIFIC_CB_FILES, 'transformation_cost_definitions.csv'), encoding="latin")
+
+
