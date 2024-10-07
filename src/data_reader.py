@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum 
 from typing import List, Union, Dict
 import pandas as pd 
@@ -5,7 +6,16 @@ import logging
 
 import os 
 
-class StrategySpecificCBFile(Enum):
+@dataclass
+class CBFileDataMixin:
+    file_name : str
+    extension : str
+
+@dataclass 
+class CBDirectoryPathDataMixin:
+    directory_name : str
+
+class StrategySpecificCBFile(CBFileDataMixin, Enum):
     """
     Enum que define los archivos con los factores de costos específicos a cada estrategia.
     """
@@ -16,16 +26,7 @@ class StrategySpecificCBFile(Enum):
     AGRC_RICE_MGMT_TX = ("AGRC_rice_mgmt_tx", "csv")
     ENTC_REDUCE_LOSSES_COST_FILE = ("ENTC_REDUCE_LOSSES_cost_file", "xlsx")
 
-    def __str__(self) -> str:
-        return self.name
-
-    def file_name(self) -> str:
-        return self.value[0]   
-
-    def extension(self) -> str:
-        return self.value[1]
-
-class DefinitionCBFile(Enum):
+class DefinitionCBFile(CBFileDataMixin, Enum):
     """
     Enum que define los archivos de definición del módulo de costos y beneficios.
     """
@@ -35,16 +36,7 @@ class DefinitionCBFile(Enum):
     COST_FACTOR_NAMES = ("system_cost_factors_list", "csv") #the list of all the cost factor files in the system, and the functions they should be evaluated with
     TRANSFORMATION_COST_DEFINITIONS = ("transformation_cost_definitions", "csv") #defines how each transformation is evaluated, including difference variables, cost multipliers, etc.
 
-    def __str__(self) -> str:
-        return self.name
-
-    def file_name(self) -> str:
-        return self.value[0]   
-
-    def extension(self) -> str:
-        return self.value[1]
-
-class CostFactorCBFile(Enum):
+class CostFactorCBFile(CBFileDataMixin, Enum):
     """
     Enum que define los archivos con los factores de costos.
     """
@@ -78,26 +70,14 @@ class CostFactorCBFile(Enum):
     WASO_WASTE_MANAGEMENT_COST_FACTORS = ("waso_waste_management_cost_factors", "csv")
     WASO_WASTE_TO_ENERGY_COST_FACTORS = ("waso_waste_to_energy_cost_factors", "csv")
 
-    def __str__(self) -> str:
-        return self.name
 
-    def file_name(self) -> str:
-        return self.value[0]   
-
-    def extension(self) -> str:
-        return self.value[1]
-
-
-class CBDirectoryPath(Enum):
+class CBDirectoryPath(CBDirectoryPathDataMixin, Enum):
     """
     Enum que define el directorio específico a cada grupo de archivos.
     """
     StrategySpecificCBFile = "strategy_specific_cb_files"
     DefinitionCBFile = "definition_files"
     CostFactorCBFile = "cost_factors"
-
-    def directory_name(self) -> str:
-        return self.value   
 
 class CBFilesReader:
     """
@@ -125,7 +105,7 @@ class CBFilesReader:
         self.StrategySpecificCBData = self.read_files_on_enum(StrategySpecificCBFile, 
                                            [
                                             data_file_path,
-                                            CBDirectoryPath.StrategySpecificCBFile.directory_name()
+                                            CBDirectoryPath.StrategySpecificCBFile.directory_name
                                            ],
                                            logger)
 
@@ -133,7 +113,7 @@ class CBFilesReader:
         self.DefinitionCBFile = self.read_files_on_enum(DefinitionCBFile, 
                                            [
                                             data_file_path,
-                                            CBDirectoryPath.DefinitionCBFile.directory_name()
+                                            CBDirectoryPath.DefinitionCBFile.directory_name
                                            ],
                                            logger)
                                            
@@ -141,7 +121,7 @@ class CBFilesReader:
         self.CostFactorCBFile = self.read_files_on_enum(CostFactorCBFile, 
                                            [
                                             data_file_path,
-                                            CBDirectoryPath.CostFactorCBFile.directory_name()
+                                            CBDirectoryPath.CostFactorCBFile.directory_name
                                            ],
                                            logger)
 
@@ -165,7 +145,7 @@ class CBFilesReader:
         for cb_file in cb_file_enum:
             
             # Construye nombre de archivo
-            FILE_NAME = f"{cb_file.file_name()}.{cb_file.extension()}"
+            FILE_NAME = f"{cb_file.file_name}.{cb_file.extension}"
 
             # Construye ruta de archivo
             DATA_FILE_PATH = os.path.join(*data_files_path, f"{FILE_NAME}")
@@ -175,16 +155,16 @@ class CBFilesReader:
                 if logger:
                     logger.info(f"El archivo {FILE_NAME} EXISTE")
                 try:
-                    if cb_file.extension() == "csv":
+                    if cb_file.extension == "csv":
                         # Cargamos archivo en formato csv
-                        cb_data_enum[cb_file.file_name()] = pd.read_csv(
+                        cb_data_enum[cb_file.file_name] = pd.read_csv(
                             DATA_FILE_PATH,
                             encoding="latin"
                         )
 
-                    elif cb_file.extension() == "xlsx":
+                    elif cb_file.extension == "xlsx":
                         # Cargamos archivo en formato excel
-                        cb_data_enum[cb_file.file_name()] = pd.read_excel(
+                        cb_data_enum[cb_file.file_name] = pd.read_excel(
                             DATA_FILE_PATH
                         )
 
