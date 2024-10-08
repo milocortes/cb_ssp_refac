@@ -6,7 +6,7 @@
 
 from general_ssp_utilities import *
 from cb_config import *
-from cb_utilities import cb_calculate_system_costs
+from cb_utilities import cb_calculate_system_costs, cb_calculate_transformation_costs
 from data_reader import CBFilesReader
 from cb_config import * 
 
@@ -25,7 +25,7 @@ CB_REFAC_DATA_PATH = build_path([CB_REFAC_PATH, "data"])
 STRATEGY_SPECIFIC_CB_PATH_FILES = build_path([CB_REFAC_DATA_PATH, "strategy_specific_cb_files"])
 DEFINITION_FILES_PATH = build_path([CB_REFAC_DATA_PATH, "definition_files"])
 
-SSP_RESULTS_DATA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/path_to_model_results"
+SSP_RESULTS_DATA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/local_exec/path_to_model_results"
 
 data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_ssp.csv"] )
 primary_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_PRIMARY.csv"])
@@ -92,10 +92,29 @@ cost_factor_names = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'system_cost_
 #defines how each transformation is evaluated, including difference variables, cost multipliers, etc.
 transformation_cost_definitions = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'transformation_cost_definitions.csv']), encoding="latin")
 
-
+#calculate system costs
 cb_data = CBFilesReader(CB_REFAC_DATA_PATH)
-
 results_system = cb_calculate_system_costs(data, strategy_cost_instructions, cost_factor_names, cb_data, SSP_GLOBAL_list_of_variables, SSP_GLOBAL_list_of_strategies)
+
+#calcualte transformation costs
+
+cb_calculate_transformation_costs(data, 
+                                    strategy_cost_instructions,
+                                              strategy2tx, 
+                                              transformation_cost_definitions, 
+                                              SSP_GLOBAL_list_of_variables, 
+                                              SSP_GLOBAL_list_of_strategies)
+
+
+
+
+
+
+
+
+
+
+
 
 """
 logging.basicConfig(

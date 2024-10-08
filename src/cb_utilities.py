@@ -1,4 +1,5 @@
 from data_reader import CBFilesReader
+from cb_strategy_specific_functions import mapping_strategy_specific_functions
 from typing import List
 from cb_config import *
 import pandas as pd 
@@ -135,6 +136,8 @@ def cb_wrapper(func):
           "list_of_variables" : args_container_to_function_param["list_of_variables_in_dataset"],
         }
 
+        final_arg_container.update(args_container_to_function_param)
+
         ## Get all variable matches on difference_variable
         diff_var = args_container_to_function_param["difference_variable"].replace("*", ".*")
         diff_var_list = [string for string in final_arg_container["list_of_variables"] if  re.match(re.compile(diff_var), string)]
@@ -183,9 +186,10 @@ def cb_difference_between_two_strategies( data : pd.DataFrame,
                                           output_mults : float, 
                                           change_in_multiplier : float, 
                                           list_of_variables : list,
-                                          country_specific_multiplier : bool = False,
-                                          arg1 : int = 0, 
-                                          arg2 : str = "TEST", 
+                                          #country_specific_multiplier : bool = False,
+                                          #arg1 : int = 0, 
+                                          #arg2 : str = "TEST", 
+                                          **additional_args : dict,
                                           ) -> pd.DataFrame:
 
   print("DESDE cb_difference_between_two_strategies")
@@ -220,3 +224,88 @@ def cb_difference_between_two_strategies( data : pd.DataFrame,
   return data_merged
 
 
+#This function loops through the strategies and creates a cost benefit definition table
+#uniqe to each strategy based on the componetn transformations
+#It then calls a support function to loop through the strategy definition
+def cb_calculate_transformation_costs(
+                                      data : pd.DataFrame, # SSP data output
+                                      strategy_cost_definitions_param : pd.DataFrame, #tells us which strategies to evaluate costs and benefit sfor
+                                      strategy_definitions_table : pd.DataFrame, #This file tells us which transformation in is in each strategy
+                                      tx_definitions_table : pd.DataFrame , # defines how each transformation is evaluated, including difference variables, cost multipliers, etc.
+                                      list_of_variables : List[str],
+                                      SSP_GLOBAL_list_of_strategies : List[str],
+                                    ) -> pd.DataFrame:
+
+  #cut the list of strategies to evaluate to those that are marked to be evaluated, and that are in the data
+  strategy_cost_definitions = strategy_cost_definitions_param.copy()
+  strategy_cost_definitions = strategy_cost_definitions[(strategy_cost_definitions["evaluate_transformation_costs"] == 1) & (strategy_cost_definitions["strategy_code"].isin(SSP_GLOBAL_list_of_strategies))]
+
+  strategy_code_comparison_mapping  = strategy_cost_definitions[["strategy_code", "comparison_code"]].to_records(index = False)
+
+  #For each strategy, create a set of instructions for calculating transformation-specific costs and benefits
+  #based on the (a) strategy to transformation mapping and (b) transformation cost table
+  #call the instructions and append them to the list.
+  #Note: it is possible we could speed this up by creating a list of all instructions and then running the code once
+  #And, the function that calls cb_wrapper could probably be integrated into this function
+
+  strategy_definitions_table = strategy_definitions_table.set_index("strategy_code")
+
+  for strategy_code,comparison_code in strategy_code_comparison_mapping:
+
+    strategy_definition = strategy_definitions_table.loc[strategy_code]
+    strategy_definition = strategy_definition[strategy_definition !=0]
+
+    transformations_list = list(strategy_definition.index)
+
+    #update the strategy codes in the definition file
+    strategy_cb_table = tx_definitions_table[tx_definitions_table["transformation_code"].isin(transformations_list)]
+    strategy_cb_table = strategy_cb_table.replace(np.nan, 0.0)
+
+    #------Just a debug section------
+    print(f"The following transformations are in strategy: {strategy_code}")
+    print('\n'.join('{}: {}'.format(*k) for k in enumerate(transformations_list)))
+
+
+    strategy_cb_table["strategy_code"] = strategy_code
+    strategy_cb_table["test_id"] = strategy_code
+    strategy_cb_table["comparison_id"] = comparison_code
+
+    cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, list_of_variables, SSP_GLOBAL_list_of_strategies)
+
+
+#This function loops through a strategy-specific cost benefit definition created by the 
+#cb_calculate_transformation_costs function and calls cb_wrapper on each and returns the results
+def cb_calculate_transformation_costs_in_strategy(
+                                                  data : pd.DataFrame, 
+                                                  strategy_specific_definitions_param : pd.DataFrame,
+                                                  list_of_variables : List[str],
+                                                  SSP_GLOBAL_list_of_strategies : List[str],
+                                                ) -> pd.DataFrame:
+    
+    #cut the list of strategies to evaluate to those that are marked to be evaluated, and that are in the data
+    strategy_specific_definitions = strategy_specific_definitions_param.copy()
+    strategy_specific_definitions = strategy_specific_definitions[(strategy_specific_definitions["include"] == 1) & (strategy_specific_definitions["strategy_code"].isin(SSP_GLOBAL_list_of_strategies))]
+    strategy_specific_definitions = strategy_specific_definitions.reset_index(drop = True)
+
+    strategy_specific_code_comparison_mapping  = strategy_specific_definitions[["strategy_code", "test_id", "comparison_id", "output_variable_name"]].to_records(index = False)
+
+    for strategy_code, test_id, comparison_id,output_variable_name in strategy_specific_code_comparison_mapping:
+      print(f"Evaluating transformation costs for {strategy_code} which is {test_id} vs. {comparison_id} for {output_variable_name}")
+
+    results = []
+
+    nstrat = strategy_specific_definitions.shape[0]
+
+    for id_strat in range(nstrat):
+      args_container = strategy_specific_definitions.iloc[[id_strat]].to_dict()
+      args_container = {i:j[id_strat] for i,j in args_container.items()}
+
+      print(f"============Evaluating transformation costs for {args_container['strategy_code']}-{args_container['output_variable_name']}")
+
+      args_container["data"] = data
+      args_container["list_of_variables_in_dataset"] = list_of_variables
+      args_container["annual change"] = args_container['annual.change']
+
+      cb_function = args_container["cb_function"]
+
+      print(f"Usaremos la función específica a la estrategia {mapping_strategy_specific_functions[cb_function]}")
