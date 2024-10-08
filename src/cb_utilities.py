@@ -15,7 +15,8 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
                               strategy_cost_definitions_param : pd.DataFrame, # tells us which strategies to evaluate costs and benefit iffor 
                               system_cost_definitions : pd.DataFrame, # the list of all the cost factor files in the system, and the functions they should be evaluated with
                               cb_data : CBFilesReader, # data container
-                              list_of_variables : List[str]
+                              list_of_variables : List[str],
+                              SSP_GLOBAL_list_of_strategies : List[str]
                               ) -> pd.DataFrame:
     
     # Get list of all variables in the SSP data output
@@ -23,8 +24,7 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
 
     #cut the list of strategies to evaluate to those that are marked to be evaluated, and that are in the data
     strategy_cost_definitions = strategy_cost_definitions_param.copy()
-    strategy_cost_definitions = strategy_cost_definitions[strategy_cost_definitions["evaluate_system_costs"] == 1 
-                                    & strategy_cost_definitions["strategy_code"].isin(list_of_variables)]
+    strategy_cost_definitions = strategy_cost_definitions[(strategy_cost_definitions["evaluate_system_costs"] == 1) & (strategy_cost_definitions["strategy_code"].isin(SSP_GLOBAL_list_of_strategies))]
     strategy_code_comparison_mapping  = strategy_cost_definitions[["strategy_code", "comparison_code"]].to_records(index = False)
                                     
     strategy_cost_definitions  = strategy_cost_definitions.set_index("strategy_code")
@@ -63,7 +63,7 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
               strategy_cost_definitions.loc[strategy_code].to_dict()
             )
 
-            if cost_factor_function=='cb_apply_cost_factors':
+            if cost_factor_function=='cb_apply_cost_factors' or cost_factor_function=="cb_system_fuel_costs":
               results.append(
                 cb_apply_cost_factors(args_container)
               )
@@ -136,7 +136,7 @@ def cb_wrapper(func):
         }
 
         ## Get all variable matches on difference_variable
-        diff_var = args_container_to_function_param["difference_variable"].replace("_*_", "_.*_")
+        diff_var = args_container_to_function_param["difference_variable"].replace("*", ".*")
         diff_var_list = [string for string in final_arg_container["list_of_variables"] if  re.match(re.compile(diff_var), string)]
 
         if not diff_var_list:
@@ -151,9 +151,9 @@ def cb_wrapper(func):
           final_arg_container["diff_var"] = diff_var_param
           result = func(**final_arg_container)
           result["strategy_code"] = final_arg_container["strategy_code_tx"]
+          result["difference_variable"] = diff_var_param
           result_tmp.append(result)
-
-
+        #print(pd.concat(result_tmp, ignore_index = True))
         # If flagged, sum up the variables in value and difference_value columns
         #Create a new output data frame and append it to the existing list
         #Note that the difference variable may be garbage if we are summing across different comparison variables
@@ -163,13 +163,14 @@ def cb_wrapper(func):
           results_summarized = result_tmp.groupby(["region", "time_period", "strategy_code", "future_id"]).agg({"value" : sum, "difference_value" : sum}).reset_index()
           results_summarized["difference_variable"] = diff_var
           results_summarized["variable"] = final_arg_container["output_var_name"]
-          
-          return results_summarized
 
+          #print(results_summarized)
+          return results_summarized.sort_values(["difference_variable", "time_period"])
+          
         else:
           appended_results = pd.concat(result_tmp, ignore_index = True)
-
-          return appended_results
+          print(appended_results)
+          return appended_results.sort_values(["difference_variable", "time_period"])
           
     return inner1
 
@@ -187,11 +188,9 @@ def cb_difference_between_two_strategies( data : pd.DataFrame,
                                           arg2 : str = "TEST", 
                                           ) -> pd.DataFrame:
 
-  #print("DESDE cb_difference_between_two_strategies")
-  #print(diff_var)
+  print("DESDE cb_difference_between_two_strategies")
+  print(diff_var)
 
-  diff_var_name = diff_var
-  
   #get the data tables and merge them
   datap_base = data[data["strategy_code"]==strategy_code_base][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [diff_var]].reset_index(drop = True)
   datap_tx   = data[data["strategy_code"]==strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [diff_var]].reset_index(drop = True)
@@ -206,7 +205,7 @@ def cb_difference_between_two_strategies( data : pd.DataFrame,
   #Calculate the difference in variables and then apply the multiplier, which may change over time
   #Assume cost change only begins in 2023
 
-  data_merged["difference_variable"] = diff_var_name
+  data_merged["difference_variable"] = diff_var
 
   data_merged["difference_value"] = data_merged[f"{diff_var}{tx_suffix}"] - data_merged[f"{diff_var}{base_suffix}"]
 

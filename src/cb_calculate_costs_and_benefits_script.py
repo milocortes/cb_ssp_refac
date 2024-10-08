@@ -16,14 +16,20 @@ import os
 import re 
 
 def build_path(PATH : List[str]) -> str:
-    return os.path.join(*PATH)
+    return os.path.abspath(os.path.join(*PATH))
 
 #-------------READ THE DATA-----------------
-DATA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/local_exec/path_to_model_results"
+## ----------- DEFINE PATHS
+CB_REFAC_PATH = build_path([os.getcwd(), ".."])
+CB_REFAC_DATA_PATH = build_path([CB_REFAC_PATH, "data"])
+STRATEGY_SPECIFIC_CB_PATH_FILES = build_path([CB_REFAC_DATA_PATH, "strategy_specific_cb_files"])
+DEFINITION_FILES_PATH = build_path([CB_REFAC_DATA_PATH, "definition_files"])
 
-data_filename = build_path([DATA_PATH, "sisepuede_results_sisepuede_run_ssp.csv"] )
-primary_filename = build_path([DATA_PATH, "ATTRIBUTE_PRIMARY.csv"])
-strategy_filename = build_path([DATA_PATH, "ATTRIBUTE_STRATEGY.csv"])
+SSP_RESULTS_DATA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/path_to_model_results"
+
+data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_ssp.csv"] )
+primary_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_PRIMARY.csv"])
+strategy_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_STRATEGY.csv"])
 
 output_file = pd.read_csv(data_filename)
 
@@ -47,8 +53,8 @@ cols_to_keep = [string for string in cols_to_keep if not re.match(re.compile('to
 data = data[cols_to_keep]
 
 #add calculation of total TLUs to data
-TLU_CONVERSION_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/local/data/strategy_specific_cb_files/lvst_tlu_conversions.csv"
-tlu_conversions = pd.read_csv(TLU_CONVERSION_PATH)
+TLU_CONVERSION_FILE_PATH = build_path([STRATEGY_SPECIFIC_CB_PATH_FILES, "lvst_tlu_conversions.csv"]) 
+tlu_conversions = pd.read_csv(TLU_CONVERSION_FILE_PATH)
 
 pop_livestock = data[SSP_GLOBAL_SIMULATION_IDENTIFIERS + [i for i in cols_to_keep if "pop_lvst" in i]]
 pop_livestock = pop_livestock.melt(id_vars=['primary_id', 'time_period', 'region', 'strategy_code', 'future_id'])
@@ -75,23 +81,21 @@ data = data.query("strategy_code!='BASE'").reset_index(drop=True)
 
 #maps strategies to transformations, from James
 #This file tells us which transformation in is in each strategy
-STRATEGY_SPECIFIC_CB_FILES = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/local/data/definition_files"
-
-strategy2tx = pd.read_csv(build_path([STRATEGY_SPECIFIC_CB_FILES, 'attribute_strategy_code.csv']))
+strategy2tx = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'attribute_strategy_code.csv']))
 
 #tells us which strategies to evaluate costs and benefit iffor
-strategy_cost_instructions = pd.read_csv(build_path([STRATEGY_SPECIFIC_CB_FILES, 'strategy_cost_instructions.csv']))
+strategy_cost_instructions = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'strategy_cost_instructions.csv']))
 
 #the list of all the cost factor files in the system, and the functions they should be evaluated with
-cost_factor_names = pd.read_csv(build_path([STRATEGY_SPECIFIC_CB_FILES, 'system_cost_factors_list.csv']))  
+cost_factor_names = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'system_cost_factors_list.csv']))  
 
 #defines how each transformation is evaluated, including difference variables, cost multipliers, etc.
-transformation_cost_definitions = pd.read_csv(build_path([STRATEGY_SPECIFIC_CB_FILES, 'transformation_cost_definitions.csv']), encoding="latin")
+transformation_cost_definitions = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'transformation_cost_definitions.csv']), encoding="latin")
 
 
-cb_data = CBFilesReader("/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/local/data")
+cb_data = CBFilesReader(CB_REFAC_DATA_PATH)
 
-results_system = cb_calculate_system_costs(data, strategy_cost_instructions, cost_factor_names, cb_data, SSP_GLOBAL_list_of_variables)
+results_system = cb_calculate_system_costs(data, strategy_cost_instructions, cost_factor_names, cb_data, SSP_GLOBAL_list_of_variables, SSP_GLOBAL_list_of_strategies)
 
 """
 logging.basicConfig(
