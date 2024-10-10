@@ -2,10 +2,13 @@ from data_reader import CBFilesReader
 from cb_strategy_specific_functions import mapping_strategy_specific_functions
 from typing import List
 from cb_config import *
+import pickle
 import pandas as pd 
 import numpy as np
 import copy
 import re
+
+from cb_strategy_specific_functions import cb_wrapper
 
 global SSP_GLOBAL_list_of_variables 
 
@@ -117,66 +120,6 @@ def cb_apply_cost_factors(
     return cb_results
 
 
-#-------2. Loop Through Variables--------
-def cb_wrapper(func):
-    def inner1(args_container_to_function_param : dict):
-        
-        #print("before Execution")
-        #print("Update args on dict")
-
-        result_tmp = []
-
-        final_arg_container = {
-          "data" : args_container_to_function_param["data"],
-          "strategy_code_tx" : args_container_to_function_param["strategy_code"],
-          "strategy_code_base" : args_container_to_function_param["comparison_code"],
-          "output_var_name" : args_container_to_function_param["output_variable_name"],
-          "output_mults" : args_container_to_function_param["multiplier"],
-          "change_in_multiplier" : args_container_to_function_param["annual change"],
-          "list_of_variables" : args_container_to_function_param["list_of_variables_in_dataset"],
-        }
-
-        final_arg_container.update(args_container_to_function_param)
-
-        ## Get all variable matches on difference_variable
-        diff_var = args_container_to_function_param["difference_variable"].replace("*", ".*")
-        diff_var_list = [string for string in final_arg_container["list_of_variables"] if  re.match(re.compile(diff_var), string)]
-
-        if not diff_var_list:
-          print(f'ERROR IN CB_WRAPPER: No variables match : {diff_var}')
-          return None 
-
-        sum_results = args_container_to_function_param["sum"]
-
-        # For each variable that matches the substring, calculate the costs and benefits
-        for diff_var_param in diff_var_list:
-          print(f"                       {diff_var_param}")
-          final_arg_container["diff_var"] = diff_var_param
-          result = func(**final_arg_container)
-          result["strategy_code"] = final_arg_container["strategy_code_tx"]
-          result["difference_variable"] = diff_var_param
-          result_tmp.append(result)
-        #print(pd.concat(result_tmp, ignore_index = True))
-        # If flagged, sum up the variables in value and difference_value columns
-        #Create a new output data frame and append it to the existing list
-        #Note that the difference variable may be garbage if we are summing across different comparison variables
-        if sum_results == 1:          
-          #create one long dataset
-          result_tmp = pd.concat(result_tmp, ignore_index = True)
-          results_summarized = result_tmp.groupby(["region", "time_period", "strategy_code", "future_id"]).agg({"value" : sum, "difference_value" : sum}).reset_index()
-          results_summarized["difference_variable"] = diff_var
-          results_summarized["variable"] = final_arg_container["output_var_name"]
-
-          #print(results_summarized)
-          return results_summarized.sort_values(["difference_variable", "time_period"])
-          
-        else:
-          appended_results = pd.concat(result_tmp, ignore_index = True)
-          print(appended_results)
-          return appended_results.sort_values(["difference_variable", "time_period"])
-          
-    return inner1
-
 @cb_wrapper
 def cb_difference_between_two_strategies( data : pd.DataFrame, 
                                           strategy_code_tx : str, 
@@ -232,6 +175,7 @@ def cb_calculate_transformation_costs(
                                       strategy_cost_definitions_param : pd.DataFrame, #tells us which strategies to evaluate costs and benefit sfor
                                       strategy_definitions_table : pd.DataFrame, #This file tells us which transformation in is in each strategy
                                       tx_definitions_table : pd.DataFrame , # defines how each transformation is evaluated, including difference variables, cost multipliers, etc.
+                                      cb_data : CBFilesReader, # data container
                                       list_of_variables : List[str],
                                       SSP_GLOBAL_list_of_strategies : List[str],
                                     ) -> pd.DataFrame:
@@ -269,8 +213,10 @@ def cb_calculate_transformation_costs(
     strategy_cb_table["strategy_code"] = strategy_code
     strategy_cb_table["test_id"] = strategy_code
     strategy_cb_table["comparison_id"] = comparison_code
+    strategy_cb_table["comparison_id"] = comparison_code
+    strategy_cb_table["strategy_cb_table"] = comparison_code
 
-    cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, list_of_variables, SSP_GLOBAL_list_of_strategies)
+    cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, cb_data, list_of_variables, SSP_GLOBAL_list_of_strategies)
 
 
 #This function loops through a strategy-specific cost benefit definition created by the 
@@ -278,6 +224,7 @@ def cb_calculate_transformation_costs(
 def cb_calculate_transformation_costs_in_strategy(
                                                   data : pd.DataFrame, 
                                                   strategy_specific_definitions_param : pd.DataFrame,
+                                                  cb_data : CBFilesReader, # data container
                                                   list_of_variables : List[str],
                                                   SSP_GLOBAL_list_of_strategies : List[str],
                                                 ) -> pd.DataFrame:
@@ -305,7 +252,33 @@ def cb_calculate_transformation_costs_in_strategy(
       args_container["data"] = data
       args_container["list_of_variables_in_dataset"] = list_of_variables
       args_container["annual change"] = args_container['annual.change']
+      args_container["cb_data"] = cb_data
+      args_container["comparison_code"] = args_container["comparison_id"]
+      args_container["output_vars"] = args_container["output_variable_name"]
 
       cb_function = args_container["cb_function"]
 
       print(f"Usaremos la función específica a la estrategia {mapping_strategy_specific_functions[cb_function]}")
+      
+      if cb_function == 'cb_manure_management_cost':
+        mapping_strategy_specific_functions[cb_function](args_container)
+      elif cb_function == 'cb_ippu_inen_ccs':
+        mapping_strategy_specific_functions[cb_function](args_container)
+      elif cb_function == 'cb_fgtv_abatement_costs':
+        mapping_strategy_specific_functions[cb_function](args_container)
+      elif cb_function == 'cb_agrc_lvst_productivity':
+        mapping_strategy_specific_functions[cb_function](args_container)
+      elif cb_function == 'cb_pflo_healthier_diets':
+        mapping_strategy_specific_functions[cb_function](args_container)
+      elif cb_function == 'cb_lndu_soil_carbon':
+        mapping_strategy_specific_functions[cb_function](args_container)
+      elif cb_function == 'cb_agrc_rice_mgmt':
+        mapping_strategy_specific_functions[cb_function](args_container)
+      elif cb_function == 'cb_lvst_enteric':
+        mapping_strategy_specific_functions[cb_function](args_container)
+
+
+
+
+      with open(f'args_container_{id_strat}.pickle', 'wb') as handle:
+        pickle.dump(args_container, handle, protocol=pickle.HIGHEST_PROTOCOL)

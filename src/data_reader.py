@@ -25,6 +25,8 @@ class StrategySpecificCBFile(CBFileDataMixin, Enum):
     AGRC_LVST_PRODUCTIVITY_COST_GDP = ("AGRC_LVST_productivity_cost_gdp", "csv")
     AGRC_RICE_MGMT_TX = ("AGRC_rice_mgmt_tx", "csv")
     ENTC_REDUCE_LOSSES_COST_FILE = ("ENTC_REDUCE_LOSSES_cost_file", "xlsx")
+    LNDU_SOIL_CARBON_FRACTIONS = ("LNDU_soil_carbon_fractions", "csv")
+    ISO3_ALL_COUNTRIES = ("iso3_all_countries", "csv")
 
 class DefinitionCBFile(CBFileDataMixin, Enum):
     """

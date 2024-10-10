@@ -9,6 +9,7 @@ from cb_config import *
 from cb_utilities import cb_calculate_system_costs, cb_calculate_transformation_costs
 from data_reader import CBFilesReader
 from cb_config import * 
+import pickle
 
 from typing import List
 import pandas as pd 
@@ -97,15 +98,17 @@ cb_data = CBFilesReader(CB_REFAC_DATA_PATH)
 results_system = cb_calculate_system_costs(data, strategy_cost_instructions, cost_factor_names, cb_data, SSP_GLOBAL_list_of_variables, SSP_GLOBAL_list_of_strategies)
 
 #calcualte transformation costs
-
 cb_calculate_transformation_costs(data, 
-                                    strategy_cost_instructions,
-                                              strategy2tx, 
-                                              transformation_cost_definitions, 
-                                              SSP_GLOBAL_list_of_variables, 
-                                              SSP_GLOBAL_list_of_strategies)
+                                  strategy_cost_instructions,
+                                  strategy2tx, 
+                                  transformation_cost_definitions, 
+                                  cb_data,
+                                  SSP_GLOBAL_list_of_variables, 
+                                  SSP_GLOBAL_list_of_strategies)
 
 
+with open('args_container_3.pickle', 'rb') as handle:
+    args_container_to_function_param = pickle.load(handle)
 
 
 
