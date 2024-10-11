@@ -98,7 +98,7 @@ cb_data = CBFilesReader(CB_REFAC_DATA_PATH)
 results_system = cb_calculate_system_costs(data, strategy_cost_instructions, cost_factor_names, cb_data, SSP_GLOBAL_list_of_variables, SSP_GLOBAL_list_of_strategies)
 
 #calcualte transformation costs
-cb_calculate_transformation_costs(data, 
+results_tx = cb_calculate_transformation_costs(data, 
                                   strategy_cost_instructions,
                                   strategy2tx, 
                                   transformation_cost_definitions, 

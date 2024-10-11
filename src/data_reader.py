@@ -27,6 +27,7 @@ class StrategySpecificCBFile(CBFileDataMixin, Enum):
     ENTC_REDUCE_LOSSES_COST_FILE = ("ENTC_REDUCE_LOSSES_cost_file", "xlsx")
     LNDU_SOIL_CARBON_FRACTIONS = ("LNDU_soil_carbon_fractions", "csv")
     ISO3_ALL_COUNTRIES = ("iso3_all_countries", "csv")
+    WALI_SANITATION_CLASSIFICATION_STRATEGY_SPECIFIC_FUNCTION = ("WALI_sanitation_classification_strategy_specific_function", "csv")
 
 class DefinitionCBFile(CBFileDataMixin, Enum):
     """
@@ -167,7 +168,8 @@ class CBFilesReader:
                     elif cb_file.extension == "xlsx":
                         # Cargamos archivo en formato excel
                         cb_data_enum[cb_file.file_name] = pd.read_excel(
-                            DATA_FILE_PATH
+                            DATA_FILE_PATH, 
+                            sheet_name = "Annual Loss Reduction Cost"
                         )
 
                     if logger:

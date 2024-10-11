@@ -2,33 +2,13 @@ from typing import Dict, List
 from cb_config import *
 import pandas as pd
 import numpy as np
+import copy
+
 import re
 
 
 
 #---------------Support Functions-----------------
-
-#Get a column of data from a wide data table and return it as long for a single strategy
-def cb_get_data_from_wide_to_long(data : pd.DataFrame, 
-                                  strategy_code : str, 
-                                  variables : List[str]
-                                  ) -> pd.DataFrame:
-
-    #global SSP_GLOBAL_LOG_VARIABLE_SEARCH
-
-    #if SSP_GLOBAL_LOG_VARIABLE_SEARCH:
-    #    SSP_GLOBAL_LOG_OF_SEARCHED_VARS = SSP_GLOBAL_LOG_OF_SEARCHED_VARS.append(variables)
-    
-    if not isinstance(variables, list):
-        variables = [variables]
-
-    data_wide = data[data["strategy_code"].isin([strategy_code])][SSP_GLOBAL_SIMULATION_IDENTIFIERS + variables].reset_index(drop = True)
-    
-    data_long = data_wide.melt(id_vars=SSP_GLOBAL_SIMULATION_IDENTIFIERS)
-  
-
-    return data_long  
-
 
 
 #-------2. Loop Through Variables--------
@@ -70,14 +50,14 @@ def cb_wrapper(func):
           result["strategy_code"] = final_arg_container["strategy_code_tx"]
           result["difference_variable"] = diff_var_param
           result_tmp.append(result)
-        #print(pd.concat(result_tmp, ignore_index = True))
+        print(pd.concat(result_tmp, ignore_index = True))
         # If flagged, sum up the variables in value and difference_value columns
         #Create a new output data frame and append it to the existing list
         #Note that the difference variable may be garbage if we are summing across different comparison variables
         if sum_results == 1:          
           #create one long dataset
           result_tmp = pd.concat(result_tmp, ignore_index = True)
-          results_summarized = result_tmp.groupby(["region", "time_period", "strategy_code", "future_id"]).agg({"value" : sum, "difference_value" : sum}).reset_index()
+          results_summarized = result_tmp.groupby(["region", "time_period", "strategy_code", "future_id"]).agg({"value" : "sum", "difference_value" : "sum"}).reset_index()
           results_summarized["difference_variable"] = diff_var
           results_summarized["variable"] = final_arg_container["output_var_name"]
 
@@ -86,10 +66,194 @@ def cb_wrapper(func):
           
         else:
           appended_results = pd.concat(result_tmp, ignore_index = True)
-          print(appended_results)
+          #print(appended_results)
           return appended_results.sort_values(["difference_variable", "time_period"])
           
     return inner1
+
+# ---------------------------------------------
+# ------ CB_FRACTION_CHANGE 
+# ---------------------------------------------
+#This function calculates the costs adn benefits as a multiplier applied to the
+#difference in a variable between two strategies, where that difference is
+#defined by some change in a factor, e.g., km/l or tons-waste/person. frac_var
+#gives the name of the variable that has the fraction. Invert tells us whether we
+#need to flip the fractions ot make our calculation correct. If our effect variable
+#is already in the denominator of our fraction (e.g., effect in L, fraction is km/L) then
+#we are good. If the effect variable is in the numerator (e.g., effect in T, fraction is 
+#T/person) then we need to flip it.
+#To be specific, let E_tx be the effect we observe (e.g., L of fuel) in the transformation
+#let f_base and f_tx be the fractions of km/L in the base and transformed futures
+#then the distance that has been traveled in the transformation, d_tx = E_tx*f_tx. 
+#traveling that same distance with the old efficiency would have required 
+#E_base = d_tx/f_base L. So, E_tx-E_base = E_tx - d_tx/f_base = E_tx - Etx*f_tx/f_base
+# = E_tx(1-ftx/f_base)
+@cb_wrapper
+def cb_fraction_change(  data : pd.DataFrame, 
+                                strategy_code_tx : str, 
+                                strategy_code_base : str, 
+                                diff_var : str, 
+                                output_vars : str, 
+                                output_mults : float, 
+                                change_in_multiplier : float, 
+                                list_of_variables : list,
+                                **additional_args : dict,
+                                ) -> pd.DataFrame:
+
+    invert = additional_args["arg2"]
+    frac_var = additional_args["arg1"]
+
+    #get teh change in fractions
+    fraction_tx = cb_get_data_from_wide_to_long(data, strategy_code_tx, frac_var)
+    fraction_base = cb_get_data_from_wide_to_long(data, strategy_code_base, frac_var)
+  
+    if invert == 1 :
+        fraction_tx["value"] = 1/fraction_tx["value"]
+        fraction_base["value"] = 1/fraction_base["value"]
+    
+    data_merged = fraction_tx.merge(right = fraction_base, on = ['time_period', 'region', 'variable'], suffixes = ['.tx_frac', '.ba_frac'])
+    data_merged["fraction_change"] = data_merged["value.tx_frac"]/data_merged["value.ba_frac"]
+    data_merged["fraction_multiplier"] = (1-data_merged["fraction_change"])
+  
+
+    #get the output results
+    output_tx = cb_get_data_from_wide_to_long(data, strategy_code_tx, diff_var)
+    data_merged = data_merged.merge(right = output_tx, on = ['time_period', 'region'], suffixes=['.tx_frac', '.effect'])
+    data_merged = data_merged.rename(columns = {"value" : "effect_value"})
+  
+    #get the avoided value
+    data_merged["difference_variable"] = diff_var
+    data_merged["difference_value"] = data_merged["effect_value"]*data_merged["fraction_multiplier"]
+    data_merged["variable"] = output_vars
+
+    data_merged["time_period_for_multiplier_change"] = np.maximum(0,data_merged["time_period"]-SSP_GLOBAL_TIME_PERIOD_2023)
+    data_merged["value"] = data_merged["difference_value"]*output_mults*change_in_multiplier**data_merged["time_period_for_multiplier_change"]    
+  
+    data_merged_results = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+  
+    #any divide-by-zero NAs from our earlier division gets a 0
+    data_merged_results = data_merged_results.replace(np.nan, 0.0)
+    
+    return data_merged_results
+
+# ---------------------------------------------
+# ------ CB_SCALE_VARIABLE_IN_STRATEGY 
+# ---------------------------------------------
+
+#This function calculates costs and benefits as just a scalar applied to a variable within
+# a single strategy. It uses code from cb_difference_between_two_strategies, so the use of
+# data_merged, for example, is holdover from that function.
+@cb_wrapper
+def cb_scale_variable_in_strategy(  data : pd.DataFrame, 
+                                strategy_code_tx : str, 
+                                strategy_code_base : str, 
+                                diff_var : str, 
+                                output_vars : str, 
+                                output_mults : float, 
+                                change_in_multiplier : float, 
+                                list_of_variables : list,
+                                **additional_args : dict,
+                                ) -> pd.DataFrame:
+
+    id_vars  = ['region','time_period', 'strategy_code', 'future_id']
+    
+    diff_var_name =  diff_var
+    datap_tx = cb_get_data_from_wide_to_long(data, strategy_code_tx, diff_var)
+
+    #This is code copied over from another function, so data_merged is just datap_tx
+    data_merged = datap_tx.copy()
+    data_merged["difference"] = data_merged["value"]
+    
+    data_merged["time_period_for_multiplier_change"] = np.maximum(0,data_merged["time_period"]-SSP_GLOBAL_TIME_PERIOD_2023)
+    data_merged["values"] = data_merged["difference"]*output_mults*change_in_multiplier**data_merged["time_period_for_multiplier_change"]  
+
+    tmp = data_merged[id_vars]
+    tmp["difference_variable"] = diff_var_name
+    tmp["difference_value"] = data_merged["difference"]
+    tmp["variable"] = output_vars
+    tmp["value"] = data_merged["values"]
+    output = tmp.copy()
+  
+    return output 
+
+
+
+# ---------------------------------------------
+# ------ CB_DIFFERENCE_BETWEEN_TWO_STRATEGIES
+# ---------------------------------------------
+@cb_wrapper
+def cb_difference_between_two_strategies( data : pd.DataFrame, 
+                                          strategy_code_tx : str, 
+                                          strategy_code_base : str, 
+                                          diff_var : str, 
+                                          output_var_name : str, 
+                                          output_mults : float, 
+                                          change_in_multiplier : float, 
+                                          list_of_variables : list,
+                                          #country_specific_multiplier : bool = False,
+                                          #arg1 : int = 0, 
+                                          #arg2 : str = "TEST", 
+                                          **additional_args : dict,
+                                          ) -> pd.DataFrame:
+
+  print("DESDE cb_difference_between_two_strategies")
+  print(diff_var)
+
+  #get the data tables and merge them
+  datap_base = data[data["strategy_code"]==strategy_code_base][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [diff_var]].reset_index(drop = True)
+  datap_tx   = data[data["strategy_code"]==strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [diff_var]].reset_index(drop = True)
+  
+  datap_base = datap_base.drop(columns=["primary_id", "strategy_code"])
+
+  tx_suffix = '_tx'
+  base_suffix = '_base'
+
+  data_merged = datap_tx.merge(right = datap_base, on =  ['region', 'time_period', 'future_id'], suffixes=(tx_suffix, base_suffix))
+
+  #Calculate the difference in variables and then apply the multiplier, which may change over time
+  #Assume cost change only begins in 2023
+
+  data_merged["difference_variable"] = diff_var
+
+  data_merged["difference_value"] = data_merged[f"{diff_var}{tx_suffix}"] - data_merged[f"{diff_var}{base_suffix}"]
+
+  data_merged["time_period_for_multiplier_change"] = np.maximum(0, data_merged["time_period"] - SSP_GLOBAL_TIME_PERIOD_2023)
+
+  data_merged["variable"] = output_var_name
+
+  data_merged["value"] = data_merged["difference_value"]*output_mults*change_in_multiplier**data_merged["time_period_for_multiplier_change"]
+
+  data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+  
+  return data_merged
+
+
+
+#Get a column of data from a wide data table and return it as long for a single strategy
+def cb_get_data_from_wide_to_long(data : pd.DataFrame, 
+                                  strategy_code : List[str], 
+                                  variables : List[str]
+                                  ) -> pd.DataFrame:
+
+    #global SSP_GLOBAL_LOG_VARIABLE_SEARCH
+
+    #if SSP_GLOBAL_LOG_VARIABLE_SEARCH:
+    #    SSP_GLOBAL_LOG_OF_SEARCHED_VARS = SSP_GLOBAL_LOG_OF_SEARCHED_VARS.append(variables)
+    
+    if not isinstance(variables, list):
+        variables = [variables]
+
+    if not isinstance(strategy_code, list):
+        strategy_code = [strategy_code]
+
+    data_wide = data[data["strategy_code"].isin(strategy_code)][SSP_GLOBAL_SIMULATION_IDENTIFIERS + variables].reset_index(drop = True)
+    
+    data_long = data_wide.melt(id_vars=SSP_GLOBAL_SIMULATION_IDENTIFIERS)
+  
+
+    return data_long  
+
+
 
 #---------------Manure Management
 @cb_wrapper
@@ -197,7 +361,7 @@ def cb_fgtv_abatement_costs(data : pd.DataFrame,
 
     #1.a summarize the emissions by fuel
     vars_to_groupby = ["primary_id", "region", "time_period", "strategy_code", "fuel"]
-    fgtv = fgtv.groupby(vars_to_groupby).agg({"value" : sum}).reset_index()
+    fgtv = fgtv.groupby(vars_to_groupby).agg({"value" : "sum"}).reset_index()
 
     data_merged_base = energy.merge(right = fgtv, on = vars_to_groupby, suffixes=('.en_base', '.fg_base'))
 
@@ -208,7 +372,7 @@ def cb_fgtv_abatement_costs(data : pd.DataFrame,
     fgtv_tx["fuel"] = fgtv_tx["variable"].apply(lambda x : x.split("_fgtv_")[-1])
 
     #2.b summarize the emissions by fuel
-    fgtv_tx = fgtv_tx.groupby(vars_to_groupby).agg({"value" : sum}).reset_index()
+    fgtv_tx = fgtv_tx.groupby(vars_to_groupby).agg({"value" : "sum"}).reset_index()
 
     data_merged_tx = energy_tx.merge(right = fgtv_tx, on = vars_to_groupby, suffixes=('.en_tx', '.fg_tx'))
 
@@ -435,16 +599,250 @@ def cb_lvst_enteric(data : pd.DataFrame,
   
     return data_merged 
 
+#----------WASO:WASTE REDUCTION TECHNICAL COSTS------------------
+
+# This function calculates consumer food waste avoided, which includes everythign after
+#the retailer. From james:
+#  consumer_food_waste_avoided = (qty_waso_total_food_produced_tonne - 
+#qty_agrc_food_produced_lost_sent_to_msw_tonne) * 
+#  (1 - factor_waso_waste_per_capita_scalar_food)/factor_waso_waste_per_capita_scalar_food
+@cb_wrapper
+def cb_waso_reduce_consumer_facing_food_waste(data : pd.DataFrame, 
+                            strategy_code_tx : str, 
+                            strategy_code_base : str, 
+                            diff_var : str, 
+                            output_vars : str, 
+                            output_mults : float, 
+                            change_in_multiplier : float, 
+                            list_of_variables : list,
+                            **additional_args : dict,
+                            ) -> pd.DataFrame:
+
+    cols_required = ['qty_waso_total_food_produced_tonne', 'qty_agrc_food_produced_lost_sent_to_msw_tonne','factor_waso_waste_per_capita_scalar_food']
+
+    food_waste_data = data[data["strategy_code"]==strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + cols_required].reset_index(drop = True)
+  
+    #Get teh consumer food waste amount
+    food_waste_data["consumer_food_waste"] = (food_waste_data["qty_waso_total_food_produced_tonne"]) 
+                                        #KLUDGE 07.06/2023
+    #UNCOMMENT THIS LINE WHEN JAMES FIXES WHAT 'qty_waso_total_food_produced_tonne' means
+                                        #Because of a bug, this is already consumer food waste.
+                                       # - food_waste_data$qty_agrc_food_produced_lost_sent_to_msw_tonne)
+
+    #Get how much would have been there
+    food_waste_data["consumer_food_waste_counterfactual"] = food_waste_data["consumer_food_waste"]/food_waste_data["factor_waso_waste_per_capita_scalar_food"]
+
+
+    #get the difference, whic his hte avoided amount
+    food_waste_data["consumer_food_waste_avoided"] = food_waste_data["consumer_food_waste"] - food_waste_data["consumer_food_waste_counterfactual"]
+
+    food_waste_data["consumer_food_waste_avoided2"] = (food_waste_data["qty_waso_total_food_produced_tonne"] - food_waste_data["qty_agrc_food_produced_lost_sent_to_msw_tonne"]) *(1-food_waste_data["factor_waso_waste_per_capita_scalar_food"])/ food_waste_data["factor_waso_waste_per_capita_scalar_food"]
+  
+    food_waste_to_merge = food_waste_data[SSP_GLOBAL_SIMULATION_IDENTIFIERS + ['consumer_food_waste_avoided']]
+
+    outputs = cb_get_data_from_wide_to_long(data, strategy_code_tx, 'qty_waso_total_food_produced_tonne')
+
+    merged_data = outputs.merge(right = food_waste_to_merge, on=['strategy_code', 'region', 'time_period'], suffixes=['', '.food'])
+
+    
+    merged_data["difference_variable"] = 'qty_consumer_food_waste_avoided'
+    merged_data["difference_value"] = merged_data["consumer_food_waste_avoided"]
+    merged_data["variable"] = output_vars
+    merged_data["value"] = merged_data["difference_value"] * output_mults
+  
+    merged_data = merged_data[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+
+    return merged_data
+
+#----------WALI:SANITATION COSTS AND BENEFITS------------------
+@cb_wrapper
+def cb_wali_sanitation_costs(data : pd.DataFrame, 
+                            list_of_variables : list,
+                            **additional_args : dict,
+                            ) -> pd.DataFrame:
+
+    sanitation_classification = additional_args["cb_data"].StrategySpecificCBData['WALI_sanitation_classification_strategy_specific_function']
+
+    #Calculate the number of people in each sanitation pathway by merging the data with the sanitation classification
+    #and with the population data and keepign onyl rows where the population_variable matches the variable.pop
+    #then multiply the fraction by the population
+    #There was concern that we need to account for differences in ww production between urban and rural
+    #But we don't since the pathway fractions for them are mutually exclusive! Hooray!
+
+    data_strategy = cb_get_data_from_wide_to_long(data, definition["strategy_code"].to_list(), sanitation_classification["variable"].to_list())
+    data_strategy = data_strategy.merge(right = sanitation_classification, on='variable')
+
+
+    population = cb_get_data_from_wide_to_long(data, definition["strategy_code"].to_list(), ['population_gnrl_rural', 'population_gnrl_urban'])
+    data_strategy = data_strategy.merge(right = population, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
+    data_strategy = data_strategy[data_strategy["population_variable"].isin(data_strategy["variable.pop"])].reset_index()
+    data_strategy["pop_in_pathway"] = data_strategy["value"]*data_strategy["value.pop"]
+
+
+    #Do the same thing with the baseline strategy
+    data_base = cb_get_data_from_wide_to_long(data, definition["comparison_code"].to_list(), sanitation_classification["variable"].to_list())
+    data_base = data_base.merge(right = sanitation_classification, on = 'variable')
+
+  
+    population_base = cb_get_data_from_wide_to_long(data, definition["comparison_code"].to_list(), ['population_gnrl_rural', 'population_gnrl_urban'])
+  
+    data_base = data_base.merge(right = population_base, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
+
+    data_base = data_base[data_base["population_variable"].isin(data_base["variable.pop"])].reset_index(drop = True)
+    data_base["pop_in_pathway"] = data_base["value"]*data_base["value.pop"]
+  
+    data_new = pd.concat([data_strategy, data_base], ignore_index = True)
+  
+    #reduce it by the sanitation category
+
+    gp_vars = ["primary_id", "region", "time_period", "strategy_code", "future_id", "difference_variable"]
+
+    data_new_summarized = data_new.groupby(gp_vars).agg({"pop_in_pathway" : "sum"}).rename(columns = {"pop_in_pathway" : "value"}).reset_index()
+    data_new_summarized = data_new_summarized.rename(columns = {"difference_variable" : "variable"})
+  
+    #now, being geniuses, we can run this using our cb_cost_factors function!
+    new_definition = pd.DataFrame({"strategy_code" : definition["strategy_code"], 
+                                    "comparison_code" : definition["comparison_code"]})
+    
+    new_list_of_variables = data_new_summarized["variable"].unique().to_list()  
+    
+    pivot_index_vars = [i for i in data_new_summarized.columns if i not in ["variable", "value"]]
+    data_new_summarized_wide = df.pivot(index = pivot_index_vars, columns="variable", values="value").reset_index()
+
+    
+    results = cb_apply_cost_factors(data_new_summarized_wide, new_definition, sanitation_cost_factors, new_list_of_variables)
+
+    return results
+
+#----------IPPU:CLINKER------------------}
+@cb_wrapper
+def cb_ippu_clinker(data : pd.DataFrame, 
+                            strategy_code_tx : str, 
+                            strategy_code_base : str, 
+                            diff_var : str, 
+                            output_vars : str, 
+                            output_mults : float, 
+                            change_in_multiplier : float, 
+                            list_of_variables : list,
+                            **additional_args : dict,
+                            ) -> pd.DataFrame:
+
+    #get the clinker fraction data
+    #get the difference in 
+    container_to_function = copy.deepcopy(additional_args)
+    container_to_function["data"] = data
+    container_to_function["strategy_code"] = strategy_code_tx
+    container_to_function["comparison_code"] = strategy_code_base
+    container_to_function["diff_var"] = "frac_ippu_cement_clinker"
+    container_to_function["output_variable_name"] = output_vars
+    container_to_function["output_vars"] = output_vars
+    container_to_function["output_mults"] = 1
+    container_to_function["annual change"] = change_in_multiplier
+    container_to_function["list_of_variables_in_dataset"] = list_of_variables
+
+
+    diff_clinker = cb_difference_between_two_strategies(container_to_function)
+
+    data_amt_cement = cb_get_data_from_wide_to_long(data, strategy_code_tx, 'prod_ippu_cement_tonne')
+  
+    data_merged = diff_clinker.merge(right = data_amt_cement, on = ['region', 'time_period'], suffixes = ["", ".cement"])
+  
+    data_merged["difference_value"] = data_merged["value.cement"]/(1-data_merged["difference_value"]) - data_merged["value.cement"]
+    data_merged["value"] = data_merged["difference_value"]*output_mults
+  
+    
+    data_output = data_merged[diff_clinker.columns.to_list()]
+    
+    return data_output
+
+
+#----------IPPU:FGASES-------------------
+@cb_wrapper
+def cb_ippu_florinated_gases(data : pd.DataFrame, 
+                            strategy_code_tx : str, 
+                            strategy_code_base : str, 
+                            diff_var : str, 
+                            output_vars : str, 
+                            output_mults : float, 
+                            change_in_multiplier : float, 
+                            list_of_variables : list,
+                            **additional_args : dict,
+                            ) -> pd.DataFrame:
+
+    #get all the variables with florinated gases
+    #use nomenclature "emission_co2e_NAMEOFGAS_ippu_" where name of gas contains an "f"
+    emissions_vars = [i for i in list_of_variables if i.startswith('emission_co2e_')]
+    fgases = [i for i in emissions_vars if not ("_co2_" in i or "_n2o_" in i or "_ch4_" in i or "_subsector_" in i)]
+
+    #sum up for both strategies
+    data_strategy = cb_get_data_from_wide_to_long(data, strategy_code_tx, fgases)
+  
+    data_strategy_summarized = data_strategy.groupby(["region", "time_period", "strategy_code"]).agg({"value" : "sum"}).rename(columns = {"value" : "difference_value"}).reset_index()
+    data_strategy_summarized["difference_variable"] = 'emission_co2e_all_fgases_ippu'
+    data_strategy_summarized["variable"] = output_vars
+
+
+    data_strategy_base = cb_get_data_from_wide_to_long(data, strategy_code_base, fgases)
+    data_strategy_base_summarized = data_strategy_base.groupby(["region", "time_period", "strategy_code"]).agg({"value" : "sum"}).rename(columns = {"value" : "difference_value"}).reset_index()
+    data_strategy_base_summarized["difference_variable"] = 'emission_co2e_all_fgases_ippu'
+    data_strategy_base_summarized["variable"] = output_vars
+
+
+    #take difference and multiply by cost / CO2e
+    data_fgases_merged = data_strategy_summarized.merge(right = data_strategy_base_summarized, on = ['region', 'time_period'], suffixes = ["", ".base"])
+    data_fgases_merged["difference_value"] = data_fgases_merged["difference_value"] - data_fgases_merged["difference_value.base"]
+    data_fgases_merged["value"] = data_fgases_merged["difference_value"] * output_mults
+  
+    data_fgases_merged = data_fgases_merged[["region","time_period","strategy_code", "difference_variable", "difference_value","variable","value"]]
+  
+    #return result
+    return data_fgases_merged
+
+#----------ENTC:REDUCE_LOSSES: Technical cost of maintaining grid ----------
+@cb_wrapper
+def cb_entc_reduce_losses(data : pd.DataFrame, 
+                            strategy_code_tx : str, 
+                            strategy_code_base : str, 
+                            diff_var : str, 
+                            output_vars : str, 
+                            output_mults : float, 
+                            change_in_multiplier : float, 
+                            list_of_variables : list,
+                            **additional_args : dict,
+                            ) -> pd.DataFrame:
+
+    #get the loss file
+    cb_transmission_loss_costs = additional_args["cb_data"].StrategySpecificCBData["ENTC_REDUCE_LOSSES_cost_file"].rename(columns = {"ISO3" : "iso_code3"})
+
+    #map ISO3 to the reigons
+    country_codes = additional_args["cb_data"].StrategySpecificCBData["iso3_all_countries"].rename(columns = {"ISO3" : "iso_code3"})
+
+
+    cb_transmission_loss_costs = cb_transmission_loss_costs.merge(right = country_codes, on = "iso_code3").rename(columns = {"REGION" : "region"})
+  
+    data_strategy = cb_get_data_from_wide_to_long(data, strategy_code_tx, diff_var)
+    data_output = data_strategy.merge(right = cb_transmission_loss_costs, on = 'region')
+    data_output["variable"] = output_vars
+    data_output["value"] = data_output["annual_investment_USD"]
+    data_output["difference_variable"] = 'N/A (constant annual cost)'
+    data_output["difference_value"] = data_output["annual_investment_USD"]
+  
+    data_output = data_output[SSP_GLOBAL_COLNAMES_OF_RESULTS] 
+  
+    return data_output
+
+
 
 mapping_strategy_specific_functions : Dict[str,str] = {
     'cb_lndu_soil_carbon' : cb_lndu_soil_carbon,
-    'cb_difference_between_two_strategies' : 'cb_difference_between_two_strategies',
-    'cb_scale_variable_in_strategy' : 'cb_scale_variable_in_strategy',
-    'cb_fraction_change' : 'cb_fraction_change',
-    'cb_entc_reduce_losses' : 'cb_entc_reduce_losses',
-    'cb_ippu_clinker' : 'cb_ippu_clinker',
+    'cb_difference_between_two_strategies' : cb_difference_between_two_strategies,
+    'cb_scale_variable_in_strategy' : cb_scale_variable_in_strategy,
+    'cb_fraction_change' : cb_fraction_change,
+    'cb_wali_sanitation_costs': cb_wali_sanitation_costs,
+    'cb_entc_reduce_losses' : cb_entc_reduce_losses,
+    'cb_ippu_clinker' : cb_ippu_clinker,
     'cb_fgtv_abatement_costs' : cb_fgtv_abatement_costs,
-    'cb_waso_reduce_consumer_facing_food_waste' : 'cb_waso_reduce_consumer_facing_food_waste',
+    'cb_waso_reduce_consumer_facing_food_waste' : cb_waso_reduce_consumer_facing_food_waste,
     'cb_lvst_enteric' : cb_lvst_enteric,
     'cb_agrc_rice_mgmt' : cb_agrc_rice_mgmt,
     'cb_agrc_lvst_productivity' : cb_agrc_lvst_productivity,

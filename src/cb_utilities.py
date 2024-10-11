@@ -8,7 +8,7 @@ import numpy as np
 import copy
 import re
 
-from cb_strategy_specific_functions import cb_wrapper
+from cb_strategy_specific_functions import cb_difference_between_two_strategies
 
 global SSP_GLOBAL_list_of_variables 
 
@@ -120,53 +120,6 @@ def cb_apply_cost_factors(
     return cb_results
 
 
-@cb_wrapper
-def cb_difference_between_two_strategies( data : pd.DataFrame, 
-                                          strategy_code_tx : str, 
-                                          strategy_code_base : str, 
-                                          diff_var : str, 
-                                          output_var_name : str, 
-                                          output_mults : float, 
-                                          change_in_multiplier : float, 
-                                          list_of_variables : list,
-                                          #country_specific_multiplier : bool = False,
-                                          #arg1 : int = 0, 
-                                          #arg2 : str = "TEST", 
-                                          **additional_args : dict,
-                                          ) -> pd.DataFrame:
-
-  print("DESDE cb_difference_between_two_strategies")
-  print(diff_var)
-
-  #get the data tables and merge them
-  datap_base = data[data["strategy_code"]==strategy_code_base][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [diff_var]].reset_index(drop = True)
-  datap_tx   = data[data["strategy_code"]==strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [diff_var]].reset_index(drop = True)
-  
-  datap_base = datap_base.drop(columns=["primary_id", "strategy_code"])
-
-  tx_suffix = '_tx'
-  base_suffix = '_base'
-
-  data_merged = datap_tx.merge(right = datap_base, on =  ['region', 'time_period', 'future_id'], suffixes=(tx_suffix, base_suffix))
-
-  #Calculate the difference in variables and then apply the multiplier, which may change over time
-  #Assume cost change only begins in 2023
-
-  data_merged["difference_variable"] = diff_var
-
-  data_merged["difference_value"] = data_merged[f"{diff_var}{tx_suffix}"] - data_merged[f"{diff_var}{base_suffix}"]
-
-  data_merged["time_period_for_multiplier_change"] = np.maximum(0, data_merged["time_period"] - SSP_GLOBAL_TIME_PERIOD_2023)
-
-  data_merged["variable"] = output_var_name
-
-  data_merged["value"] = data_merged["difference_value"]*output_mults*change_in_multiplier**data_merged["time_period_for_multiplier_change"]
-
-  data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
-  
-  return data_merged
-
-
 #This function loops through the strategies and creates a cost benefit definition table
 #uniqe to each strategy based on the componetn transformations
 #It then calls a support function to loop through the strategy definition
@@ -192,6 +145,8 @@ def cb_calculate_transformation_costs(
   #Note: it is possible we could speed this up by creating a list of all instructions and then running the code once
   #And, the function that calls cb_wrapper could probably be integrated into this function
 
+  results = []
+
   strategy_definitions_table = strategy_definitions_table.set_index("strategy_code")
 
   for strategy_code,comparison_code in strategy_code_comparison_mapping:
@@ -216,7 +171,13 @@ def cb_calculate_transformation_costs(
     strategy_cb_table["comparison_id"] = comparison_code
     strategy_cb_table["strategy_cb_table"] = comparison_code
 
-    cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, cb_data, list_of_variables, SSP_GLOBAL_list_of_strategies)
+    results.append(
+          cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, cb_data, list_of_variables, SSP_GLOBAL_list_of_strategies)
+    )
+
+  results = pd.concat(results, ignore_index = True)
+
+  return results
 
 
 #This function loops through a strategy-specific cost benefit definition created by the 
@@ -248,7 +209,6 @@ def cb_calculate_transformation_costs_in_strategy(
       args_container = {i:j[id_strat] for i,j in args_container.items()}
 
       print(f"============Evaluating transformation costs for {args_container['strategy_code']}-{args_container['output_variable_name']}")
-
       args_container["data"] = data
       args_container["list_of_variables_in_dataset"] = list_of_variables
       args_container["annual change"] = args_container['annual.change']
@@ -258,27 +218,14 @@ def cb_calculate_transformation_costs_in_strategy(
 
       cb_function = args_container["cb_function"]
 
-      print(f"Usaremos la función específica a la estrategia {mapping_strategy_specific_functions[cb_function]}")
+      #print(f"Usaremos la función específica a la estrategia {mapping_strategy_specific_functions[cb_function]}")
       
-      if cb_function == 'cb_manure_management_cost':
-        mapping_strategy_specific_functions[cb_function](args_container)
-      elif cb_function == 'cb_ippu_inen_ccs':
-        mapping_strategy_specific_functions[cb_function](args_container)
-      elif cb_function == 'cb_fgtv_abatement_costs':
-        mapping_strategy_specific_functions[cb_function](args_container)
-      elif cb_function == 'cb_agrc_lvst_productivity':
-        mapping_strategy_specific_functions[cb_function](args_container)
-      elif cb_function == 'cb_pflo_healthier_diets':
-        mapping_strategy_specific_functions[cb_function](args_container)
-      elif cb_function == 'cb_lndu_soil_carbon':
-        mapping_strategy_specific_functions[cb_function](args_container)
-      elif cb_function == 'cb_agrc_rice_mgmt':
-        mapping_strategy_specific_functions[cb_function](args_container)
-      elif cb_function == 'cb_lvst_enteric':
-        mapping_strategy_specific_functions[cb_function](args_container)
+      ctcs_resultado = mapping_strategy_specific_functions[cb_function](args_container)
+      
+      results.append(
+        ctcs_resultado
+      )
 
+    results = pd.concat(results, ignore_index = True)
 
-
-
-      with open(f'args_container_{id_strat}.pickle', 'wb') as handle:
-        pickle.dump(args_container, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    return results
