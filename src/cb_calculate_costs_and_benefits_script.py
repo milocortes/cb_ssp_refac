@@ -24,9 +24,10 @@ def build_path(PATH : List[str]) -> str:
 CB_REFAC_PATH = build_path([os.getcwd(), ".."])
 CB_REFAC_DATA_PATH = build_path([CB_REFAC_PATH, "data"])
 STRATEGY_SPECIFIC_CB_PATH_FILES = build_path([CB_REFAC_DATA_PATH, "strategy_specific_cb_files"])
+SSP_RESULTS_DATA_PATH = build_path([CB_REFAC_DATA_PATH, "ssp_model_results"])
 DEFINITION_FILES_PATH = build_path([CB_REFAC_DATA_PATH, "definition_files"])
 
-SSP_RESULTS_DATA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/local_exec/path_to_model_results"
+OUTPUT_PATH = build_path([CB_REFAC_PATH, "output"])
 
 data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_ssp.csv"] )
 primary_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_PRIMARY.csv"])
@@ -106,20 +107,17 @@ results_tx = cb_calculate_transformation_costs(data,
                                   SSP_GLOBAL_list_of_variables, 
                                   SSP_GLOBAL_list_of_strategies)
 
+RESULTS_SYSTEMS_PATH = build_path([OUTPUT_PATH, "python", "results_system_python.csv"])
+RESULTS_TX_SYSTEMS_PATH = build_path([OUTPUT_PATH, "python", "results_tx_python.csv"])
 
-with open('args_container_3.pickle', 'rb') as handle:
-    args_container_to_function_param = pickle.load(handle)
-
-
-
-
-
-
-
-
+results_system.to_csv(RESULTS_SYSTEMS_PATH, index = False)
+results_tx.to_csv(RESULTS_TX_SYSTEMS_PATH, index = False)
 
 
 """
+with open('args_container_3.pickle', 'rb') as handle:
+    args_container_to_function_param = pickle.load(handle)
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",

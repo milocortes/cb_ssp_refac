@@ -50,7 +50,7 @@ def cb_wrapper(func):
           result["strategy_code"] = final_arg_container["strategy_code_tx"]
           result["difference_variable"] = diff_var_param
           result_tmp.append(result)
-        print(pd.concat(result_tmp, ignore_index = True))
+        #print(pd.concat(result_tmp, ignore_index = True))
         # If flagged, sum up the variables in value and difference_value columns
         #Create a new output data frame and append it to the existing list
         #Note that the difference variable may be garbage if we are summing across different comparison variables
