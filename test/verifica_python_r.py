@@ -21,3 +21,27 @@ results_system_r = pd.read_csv(RESULTS_SYSTEMS_R)
 
 set(results_system_r.variable.unique()) - set(results_system_python.variable.unique())
 set(results_system_r.difference_variable.unique()) - set(results_system_python.difference_variable.unique())
+
+
+def parser_to_kdl(difference_variable : str , 
+                  multiplier : str ,
+                  multiplier_unit : str ,
+                  annual_change : str ,
+                  output_variable_name : str ,
+                  output_display_name : str ,
+                  sum : str ,
+                  natural_multiplier_units : str ,
+                  display_notes : str ,
+                  internal_notes)  -> str:
+
+
+import kdl
+
+doc = kdl.parse('''
+  data sector="afolu_crop_livestock_production_cost_factors" {
+    var_node difference_variable="pop_lvst_buffalo" multiplier=260.0 multiplier_unit="$/head"
+
+    var_node difference_variable="pop_lvst_cattle_dairy" multiplier=260.0 multiplier_unit="$/head"
+  }
+''')
+
