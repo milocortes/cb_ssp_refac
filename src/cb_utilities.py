@@ -229,3 +229,74 @@ def cb_calculate_transformation_costs_in_strategy(
     results = pd.concat(results, ignore_index = True)
 
     return results
+
+
+def cb_process_interactions(res : pd.DataFrame,
+                            st2tx : pd.DataFrame, 
+                            pp_instructions : pd.DataFrame
+                            ) -> pd.DataFrame:
+    
+
+    interactions = pp_instructions.copy()
+
+    #get the list of interactions
+    list_of_interactions = interactions["interaction_name"].unique()
+
+    #get the strategies in the results file
+    strategies = res["strategy_code"].unique()
+
+    for strategy_code in strategies:
+        #get the list of transformations
+        strategy_definition = st2tx.query(f"strategy_code=='{strategy_code}'").reset_index(drop = True).iloc[0]
+        
+        #update the strategy codes in the definition file
+        tx_in_strategy = strategy_definition[strategy_definition==1].index.to_list()
+
+        #for each interaction
+        for interaction in list_of_interactions:
+            #transformations that interact
+            tx_interacting = interactions.query(f"interaction_name=='{interaction}'")
+            tx_in_interaction = tx_interacting["transformation_code"].unique()
+            tx_in_both = list(set(tx_in_interaction).intersection(tx_in_strategy))
+
+            #only count the transfomrations actully in the strategy
+            tx_interacting = tx_interacting[tx_interacting["transformation_code"].isin(tx_in_both)]
+
+            if SSP_PRINT_STRATEGIES: 
+                print(f"Resolving Interactions in {interaction} : {', '.join(tx_interacting["transformation_code"].to_list())} ")
+
+            if tx_interacting.shape[0] == 0:
+                if SSP_PRINT_STRATEGIES:
+                    print(f"No interactions, skipping... {strategy_code}")
+                    continue
+
+            # Rescale
+            tx_rescale = tx_interacting.groupby("transformation_code")\
+                                        .agg({"relative_effect" : "mean"})\
+                                        .reset_index()\
+                                        .rename(columns = {"relative_effect":"original_scalar"})
+            
+            new_sum = tx_rescale["original_scalar"].sum()
+            tx_rescale["newscalar"] = tx_rescale["original_scalar"]/new_sum
+
+            #update the original scalars in the intracting tx
+            tx_interacting = tx_interacting.merge(right=tx_rescale, on = "transformation_code")
+            tx_interacting["strategy_code"] = strategy_code
+
+            #apply these scalars to the data
+            res_subset = res[(res["strategy_code"] == strategy_code) & (res["variable"].isin(tx_interacting["variable"]))]
+            res_subset = res_subset.merge(right=tx_interacting, on = ["strategy_code", "variable"], suffixes=['', '.int'])
+            res_subset.loc[res_subset["scale_variable"]==0.0, "newscalar"] = 1.0
+
+            res_subset["value"] = res_subset["value"] * res_subset["newscalar"]
+            res_subset["difference_value"] = res_subset["difference_value"] * res_subset["newscalar"]
+
+            #make a replacement dataset
+            res_for_replacement = res_subset[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+
+            #remove the other rows from the dataset
+            res = res[~((res["strategy_code"] == strategy_code) & (res["variable"].isin(tx_interacting["variable"])))]
+
+            res = pd.concat([res, res_for_replacement], ignore_index = True)
+
+    return res
