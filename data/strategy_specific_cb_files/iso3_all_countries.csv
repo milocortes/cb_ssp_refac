@@ -25,33 +25,33 @@ Suriname,suriname,SUR,740
 Trinidad and Tobago,trinidad_and_tobago,TTO,780
 Uruguay,uruguay,URY,858
 Venezuela,venezuela,VEN,862
-Afghanistan,afghanistan,AFG,004
-Albania,albania,ALB,008
-Algeria,algeria,DZA,012
-American Samoa,american samoa,ASM,016
-Andorra,andorra,AND,020
-Angola,angola,AGO,024
+Afghanistan,afghanistan,AFG,4
+Albania,albania,ALB,8
+Algeria,algeria,DZA,12
+American Samoa,american samoa,ASM,16
+Andorra,andorra,AND,20
+Angola,angola,AGO,24
 Anguila,anguila,AIA,660
-Antigua and Barbuda,antigua and barbuda,ATG,028
-Armenia,armenia,ARM,051
+Antigua and Barbuda,antigua and barbuda,ATG,28
+Armenia,armenia,ARM,51
 Aruba,aruba,ABW,533
-Australia,australia,AUS,036
-Austria,austria,AUT,040
-Azerbaijan,azerbaijan,AZE,031
-Bahrain,bahrain,BHR,048
-Bangladesh,bangladesh,BGD,050
+Australia,australia,AUS,36
+Austria,austria,AUT,40
+Azerbaijan,azerbaijan,AZE,31
+Bahrain,bahrain,BHR,48
+Bangladesh,bangladesh,BGD,50
 Belarus,belarus,BLR,112
-Belgium,belgium,BEL,056
-Belgium-Luxembourg,belgium-luxembourg,BLX,058
+Belgium,belgium,BEL,56
+Belgium-Luxembourg,belgium-luxembourg,BLX,58
 Benin,benin,BEN,204
-Bermuda,bermuda,BMU,060
-Bhutan,bhutan,BTN,064
-Bosnia and Herzegovina,bosnia and herzegovina,BIH,070
-Botswana,botswana,BWA,072
-Br. Antr. Terr,br. antr. terr,BAT,080
-British Indian Ocean Ter.,british indian ocean ter.,IOT,086
-British Virgin Islands,british virgin islands,VGB,092
-Brunei,brunei,BRN,096
+Bermuda,bermuda,BMU,60
+Bhutan,bhutan,BTN,64
+Bosnia and Herzegovina,bosnia and herzegovina,BIH,70
+Botswana,botswana,BWA,72
+Br. Antr. Terr,br. antr. terr,BAT,80
+British Indian Ocean Ter.,british indian ocean ter.,IOT,86
+British Virgin Islands,british virgin islands,VGB,92
+Brunei,brunei,BRN,96
 Bulgaria,bulgaria,BGR,100
 Burkina Faso,burkina faso,BFA,854
 Burundi,burundi,BDI,108
@@ -122,7 +122,7 @@ Hungary,hungary,HUN,348
 Iceland,iceland,ISL,352
 India,india,IND,356
 Indonesia,indonesia,IDN,360
-"Iran, Islamic Rep.","iran, islamic rep.",IRN,364
+"Iran, Islamic Rep.",iran,IRN,364
 Iraq,iraq,IRQ,368
 Ireland,ireland,IRL,372
 Israel,israel,ISR,376
@@ -214,7 +214,7 @@ SIKKIM,sikkim,SIK,698
 Singapore,singapore,SGP,702
 Slovak Republic,slovak republic,SVK,703
 Slovenia,slovenia,SVN,705
-Solomon Islands,solomon islands,SLB,090
+Solomon Islands,solomon islands,SLB,90
 Somalia,somalia,SOM,706
 South Africa,south africa,ZAF,710
 Soviet Union,soviet union,SVU,810
@@ -256,7 +256,7 @@ Virgin Islands (U.S.),virgin islands (u.s.),VIR,850
 Wake Island,wake island,WAK,872
 Wallis and Futura Isl.,wallis and futura isl.,WLF,876
 Western Sahara,western sahara,ESH,732
-World,world,WLD,000
+World,world,WLD,0
 Yemen Democratic,yemen democratic,YDR,720
 "Yemen, Rep.","yemen, rep.",YEM,887
 Yugoslavia,yugoslavia,SER,891

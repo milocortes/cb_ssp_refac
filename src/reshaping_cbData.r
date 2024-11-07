@@ -1,6 +1,5 @@
-
 #read all folders 
- dir.data <- "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/output/"
+ dir.data <- "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/remote/cb_ssp_refac/output/"
  target_cb_file <- "cost_benefit_results.csv"
  cb_data <-read.csv(paste0(dir.data,target_cb_file))
  cb_chars <- data.frame(do.call(rbind, strsplit(as.character(cb_data$variable), ":")))
@@ -30,6 +29,10 @@ cb_data$strategy <- gsub("PFLO:TECHNOLOGICAL_ADOPTION", "Unconstrained Climate A
 cb_data$strategy_id <- ifelse(cb_data$strategy=="Unconstrained Climate Action",6005,ifelse(cb_data$strategy=="Unconstrained Climate Action -Technology Adoption Scenario-",6004,6003))
 cb_data$ids <- paste(cb_data$variable,cb_data$strategy_id,sep=":")
 
+ids_all <- unique(cb_data$ids)
+
+subset(ids_all,grepl("productivity",ids_all)==TRUE)
+
 
 #edition to the table  
 #differentiate between opex and capex 
@@ -37,7 +40,7 @@ cb_data$cb_type <- ifelse(cb_data$cb_type=="technical_cost" & cb_data$item_2=="o
 cb_data$cb_type <- ifelse(cb_data$cb_type=="technical_cost", "capex",cb_data$cb_type)
 
 
-dir.out  <- "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/output/"
+dir.out  <- "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/remote/cb_ssp_refac/output/"
 write.csv(cb_data,paste0(dir.out,"cb_data.csv"),row.names=FALSE)
 
 

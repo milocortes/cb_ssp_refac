@@ -93,7 +93,8 @@ data = data.query("strategy_code!='BASE'").reset_index(drop=True)
 strategy2tx = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'attribute_strategy_code.csv']))
 
 ## Agregamos las estrategias 6003 : 'PFLO:CONSTRAINED', 6004 : 'PFLO:TECHNOLOGICAL_ADOPTION',6005 :'PFLO:UNCONSTRAINED'
-ssp_strategy_definition_james = pd.read_csv("/home/milo/Documents/egtp/SISEPUEDE/ejecuciones_ssp/WB/sisepuede_region_nbs/iran/transformations/strategy_definitions.csv")
+STRATEGY_DEFINITION_FILE_PATH = build_path([SSP_RESULTS_DATA_PATH, "strategy_definitions.csv"])
+ssp_strategy_definition_james = pd.read_csv(STRATEGY_DEFINITION_FILE_PATH)
 
 nuevas_strategy2tx = []
 
