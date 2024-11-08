@@ -15,6 +15,7 @@ from typing import List
 import pandas as pd 
 import os 
 import re 
+import numpy as np
 
 def build_path(PATH : List[str]) -> str:
     return os.path.abspath(os.path.join(*PATH))
@@ -96,6 +97,55 @@ strategy2tx = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'attribute_strategy
 STRATEGY_DEFINITION_FILE_PATH = build_path([SSP_RESULTS_DATA_PATH, "strategy_definitions.csv"])
 ssp_strategy_definition_james = pd.read_csv(STRATEGY_DEFINITION_FILE_PATH)
 
+actualiza_claves_tx  = {'TX:AGRC:EXPAND_CONSERVATION_AGRICULTURE' : 'TX:AGRC:INC_CONSERVATION_AGRICULTURE',
+ #'TX:AGRC:INC_RESIDUE_REMOVAL' : ,
+ #'TX:AGRC_DEC_DEMAND_FOR_UNHEALTHY_CROPS',
+ 'TX:CCSQ:INCREASE_CAPTURE' : 'TX:CCSQ:INC_CAPTURE',
+ #'TX:ENTC:LEAST_COST',
+ 'TX:ENTC:TARGET_RENEWABLE_ENERGY_PRODUCTION' : 'TX:ENTC:TARGET_RENEWABLE_ELEC',
+ #'TX:GNRL:DEC_RED_MEAT_CONSUMPTION',
+ 'TX:INEN:FUEL_SWITCH_HI_AND_LO_HEAT' : 'TX:INEN:SHIFT_FUEL_HEAT',
+ #'TX:INEN:FUEL_SWITCH_HI_HEAT',
+ #'TX:INEN:FUEL_SWITCH_LO_HEAT',
+ 'TX:LNDU:DEC_DEFORESTATION_AND_INC_SILVOPASTURE' : 'TX:LNDU:DEC_DEFORESTATION',
+ #'TX:LNDU:INC_LAND_REHABILITIATION',
+ 'TX:PFLO:IND_INC_CCS' : 'TX:PFLO:INC_IND_CCS',
+ 'TX:SCOE:FUEL_SWITCH_HEAT' : 'TX:SCOE:SHIFT_FUEL_HEAT',
+ 'TX:SOIL:DEC_LIME_APPLIED' : 'TX:SOIL:DEC_LIME_APPLIED_HIGHEST',
+ 'TX:SOIL:DEC_N_APPLIED' : 'TX:SOIL:DEC_N_APPLIED_HIGHEST',
+ 'TX:TRNS:FUEL_SWITCH_LIGHT_DUTY' : 'TX:TRNS:SHIFT_FUEL_LIGHT_DUTY',
+ 'TX:TRNS:FUEL_SWITCH_MARITIME' : 'TX:TRNS:SHIFT_FUEL_MARITIME',
+ 'TX:TRNS:FUEL_SWITCH_MEDIUM_DUTY' : 'TX:TRNS:SHIFT_FUEL_MEDIUM_DUTY',
+ 'TX:TRNS:FUEL_SWITCH_RAIL' : 'TX:TRNS:SHIFT_FUEL_RAIL',
+ 'TX:TRNS:INC_EFFICIENCY' : 'TX:TRNS:INC_EFFICIENCY_NON_ELECTRIC',
+ 'TX:TRNS:INC_OCCUPANCY' : 'TX:TRNS:INC_OCCUPANCY_LIGHT_DUTY',
+ 'TX:TRNS:MODE_SHIFT_FREIGHT' : 'TX:TRNS:SHIFT_MODE_FREIGHT',
+ 'TX:TRNS:MODE_SHIFT_PASSENGER' : 'TX:TRNS:SHIFT_MODE_PASSENGER',
+ 'TX:TRNS:MODE_SHIFT_REGIONAL' : 'TX:TRNS:SHIFT_MODE_REGIONAL'}
+ 
+actualiza_claves_tx = {j:i for i,j in actualiza_claves_tx.items()}
+
+def quita_sufijo(tx_nombre : str) -> str:
+    for sufijo in ["_LOW","_LOWEST","_HIGHEST","_LOWER","_FROMTECH", "_URBPLAN"]:
+        tx_nombre = tx_nombre.replace(sufijo, "")
+
+    return tx_nombre
+
+for id_tx in ['PFLO:CONSTRAINED', 'PFLO:TECHNOLOGICAL_ADOPTION', 'PFLO:UNCONSTRAINED']:
+    tx_in_strat = ssp_strategy_definition_james.set_index("strategy_code").loc[id_tx, "transformation_specification"].split("|")
+    df_new_strat_name = pd.DataFrame({"strategy_code" : [id_tx]})
+    df_binary_tx = pd.DataFrame([[1]*len(tx_in_strat)] , columns=tx_in_strat)
+    df_new_strat = pd.concat([df_new_strat_name, df_binary_tx], axis = 1)
+    df_new_strat.columns = [quita_sufijo(i) for i in df_new_strat.columns]
+
+    df_new_strat = df_new_strat.rename(columns = actualiza_claves_tx)
+
+    columnas_coinciden = list(set(strategy2tx.columns).intersection(df_new_strat.columns))
+    strategy2tx = pd.concat([strategy2tx, df_new_strat[columnas_coinciden]], ignore_index = True)
+
+strategy2tx = strategy2tx.replace(np.nan, 0)
+
+"""
 nuevas_strategy2tx = []
 
 mapp_id2codename = {
@@ -110,11 +160,18 @@ for id_tx in [6003, 6004, 6005]:
     )
 
 nuevas_strategy2tx = pd.DataFrame(nuevas_strategy2tx, columns=strategy2tx.columns)
-
-
 strategy2tx = pd.concat([strategy2tx, nuevas_strategy2tx], ignore_index = True)
 
+"""
+
 #tells us which strategies to evaluate costs and benefit iffor
+mapp_id2codename = {
+     6003 : 'PFLO:CONSTRAINED', 
+     6004 : 'PFLO:TECHNOLOGICAL_ADOPTION',
+     6005 :'PFLO:UNCONSTRAINED'
+}
+
+
 strategy_cost_instructions = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'strategy_cost_instructions.csv']))
 
 new_strategy_cost_instructions = pd.DataFrame(
@@ -134,9 +191,30 @@ transformation_cost_definitions = pd.read_csv(build_path([DEFINITION_FILES_PATH,
 
 #calculate system costs
 cb_data = CBFilesReader(CB_REFAC_DATA_PATH)
+
+print(
+    """
+    ++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+                    CALCULATE SYSTEM COST
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++++++
+    """
+)
 results_system = cb_calculate_system_costs(data, strategy_cost_instructions, cost_factor_names, cb_data, SSP_GLOBAL_list_of_variables, SSP_GLOBAL_list_of_strategies)
 
 #calcualte transformation costs
+
+print(
+    """
+    ++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+                    CALCULATE TRANSFORMATION COST
+
+    +++++++++++++++++++++++++++++++++++++++++++++++++++++
+    """
+)
+
 results_tx = cb_calculate_transformation_costs(data, 
                                   strategy_cost_instructions,
                                   strategy2tx, 
@@ -222,5 +300,13 @@ DATA_FILE_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizac
 cb_reader = CBFilesReader(DATA_FILE_PATH, logger)
 """
 
+crops_vars = [i for i in df.variable.unique() if "cb:agrc:crop_value:crops_produced:" in i]
 
+crops_vars = [i for i in df["variable"].unique() if "productivity" in i]
 
+for crop in crops_vars:
+
+    consulta = f"sector =='agrc' and cb_type=='capex' and variable =='{crop}'"
+    cb_cols = ["strategy_code", "Year", "value"]
+    df.query(consulta)[cb_cols].pivot(index = "Year", columns = "strategy_code", values = "value").plot.bar(rot=0, title = crop)
+    plt.show()

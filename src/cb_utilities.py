@@ -219,7 +219,7 @@ def cb_calculate_transformation_costs_in_strategy(
       cb_function = args_container["cb_function"]
 
       #print(f"Usaremos la función específica a la estrategia {mapping_strategy_specific_functions[cb_function]}")
-      
+      print(f"Usaremos la función específica a la estrategia {cb_function}")
       ctcs_resultado = mapping_strategy_specific_functions[cb_function](args_container)
       
       results.append(
