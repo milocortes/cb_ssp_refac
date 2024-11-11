@@ -526,6 +526,14 @@ def cb_agrc_lvst_productivity(data : pd.DataFrame,
     gdp["difference_value"] = gdp["cost_frac"]
     gdp["variable"] = output_vars
     gdp["value"] = gdp["value"]*10**9*gdp["cost_frac"]/2*(-1)
+
+    escalar_prod = 1
+
+    if strategy_code_tx == 'PFLO:UNCONSTRAINED':
+        escalar_prod = 1.2
+    
+    gdp["value"] *= escalar_prod
+    
     gdp.loc[gdp["time_period"]<SSP_GLOBAL_TIME_PERIOD_TX_START, "value"] = 0
   
     gdp = gdp[SSP_GLOBAL_COLNAMES_OF_RESULTS]
