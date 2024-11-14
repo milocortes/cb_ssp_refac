@@ -23,10 +23,10 @@ cb_data$Year <- cb_data$time_period+2015
 #change strategy names 
 cb_data$strategy <- gsub("PFLO:UNCONSTRAINED", "Unconstrained Climate Action", cb_data$strategy )
 cb_data$strategy <- gsub("PFLO:CONSTRAINED", "Constrained Climate Action-Efficiency Only", cb_data$strategy )
-cb_data$strategy <- gsub("PFLO:TECHNOLOGICAL_ADOPTION", "Unconstrained Climate Action -Technology Adoption Scenario-", cb_data$strategy )
+cb_data$strategy <- gsub("PFLO:NET_ZERO", "NET ZERO", cb_data$strategy )
 
 #create strategy id 
-cb_data$strategy_id <- ifelse(cb_data$strategy=="Unconstrained Climate Action",6005,ifelse(cb_data$strategy=="Unconstrained Climate Action -Technology Adoption Scenario-",6004,6003))
+cb_data$strategy_id <- ifelse(cb_data$strategy=="NET_ZERO",6005,ifelse(cb_data$strategy=="Unconstrained Climate Action",6004,6003))
 cb_data$ids <- paste(cb_data$variable,cb_data$strategy_id,sep=":")
 
 ids_all <- unique(cb_data$ids)

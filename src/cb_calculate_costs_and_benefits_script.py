@@ -94,7 +94,8 @@ data = data.query("strategy_code!='BASE'").reset_index(drop=True)
 strategy2tx = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'attribute_strategy_code.csv']))
 
 ## Agregamos las estrategias 6003 : 'PFLO:CONSTRAINED', 6004 : 'PFLO:TECHNOLOGICAL_ADOPTION',6005 :'PFLO:UNCONSTRAINED'
-STRATEGY_DEFINITION_FILE_PATH = build_path([SSP_RESULTS_DATA_PATH, "strategy_definitions.csv"])
+#STRATEGY_DEFINITION_FILE_PATH = build_path([SSP_RESULTS_DATA_PATH, "strategy_definitions.csv"])
+STRATEGY_DEFINITION_FILE_PATH = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_STRATEGY.csv"])
 ssp_strategy_definition_james = pd.read_csv(STRATEGY_DEFINITION_FILE_PATH)
 
 actualiza_claves_tx  = {'TX:AGRC:EXPAND_CONSERVATION_AGRICULTURE' : 'TX:AGRC:INC_CONSERVATION_AGRICULTURE',
@@ -108,6 +109,7 @@ actualiza_claves_tx  = {'TX:AGRC:EXPAND_CONSERVATION_AGRICULTURE' : 'TX:AGRC:INC
  #'TX:INEN:FUEL_SWITCH_HI_HEAT',
  #'TX:INEN:FUEL_SWITCH_LO_HEAT',
  'TX:LNDU:DEC_DEFORESTATION_AND_INC_SILVOPASTURE' : 'TX:LNDU:DEC_DEFORESTATION',
+  'TX:LNDU:DEC_DEFORESTATION' : 'TX:LNDU:DEC_DEFORESTATION',
  #'TX:LNDU:INC_LAND_REHABILITIATION',
  'TX:PFLO:IND_INC_CCS' : 'TX:PFLO:INC_IND_CCS',
  'TX:SCOE:FUEL_SWITCH_HEAT' : 'TX:SCOE:SHIFT_FUEL_HEAT',
@@ -126,12 +128,13 @@ actualiza_claves_tx  = {'TX:AGRC:EXPAND_CONSERVATION_AGRICULTURE' : 'TX:AGRC:INC
 actualiza_claves_tx = {j:i for i,j in actualiza_claves_tx.items()}
 
 def quita_sufijo(tx_nombre : str) -> str:
-    for sufijo in ["_LOW","_LOWEST","_HIGHEST","_LOWER","_FROMTECH", "_URBPLAN"]:
-        tx_nombre = tx_nombre.replace(sufijo, "")
+    for sufijo in ["_LOW","_LOWEST","_HIGHEST","_HIGHER", "_HIGH", "_LOWER","_FROMTECH", "_URBPLAN"]:
+        if tx_nombre.endswith(sufijo):
+            tx_nombre = tx_nombre.replace(sufijo, "")
 
     return tx_nombre
 
-for id_tx in ['PFLO:CONSTRAINED', 'PFLO:TECHNOLOGICAL_ADOPTION', 'PFLO:UNCONSTRAINED']:
+for id_tx in ['PFLO:CONSTRAINED', 'PFLO:UNCONSTRAINED', 'PFLO:NET_ZERO']:
     tx_in_strat = ssp_strategy_definition_james.set_index("strategy_code").loc[id_tx, "transformation_specification"].split("|")
     df_new_strat_name = pd.DataFrame({"strategy_code" : [id_tx]})
     df_binary_tx = pd.DataFrame([[1]*len(tx_in_strat)] , columns=tx_in_strat)
@@ -167,8 +170,8 @@ strategy2tx = pd.concat([strategy2tx, nuevas_strategy2tx], ignore_index = True)
 #tells us which strategies to evaluate costs and benefit iffor
 mapp_id2codename = {
      6003 : 'PFLO:CONSTRAINED', 
-     6004 : 'PFLO:TECHNOLOGICAL_ADOPTION',
-     6005 :'PFLO:UNCONSTRAINED'
+     6004 : 'PFLO:UNCONSTRAINED',
+     6005 :'PFLO:NET_ZERO'
 }
 
 

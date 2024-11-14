@@ -100,8 +100,15 @@ def cb_fraction_change(  data : pd.DataFrame,
                                 **additional_args : dict,
                                 ) -> pd.DataFrame:
 
+    print("APLICANDO CB_FRACTION_CHANGE")
     invert = additional_args["arg2"]
     frac_var = additional_args["arg1"]
+
+    print(f"invert : {invert}")
+    print(f"frac_var : {frac_var}")
+    print(f"strategy_code_tx : {strategy_code_tx}")
+    print(f"strategy_code_base : {strategy_code_base}")
+    print(f"diff_var : {diff_var}")
 
     #get teh change in fractions
     fraction_tx = cb_get_data_from_wide_to_long(data, strategy_code_tx, frac_var)
@@ -198,6 +205,8 @@ def cb_difference_between_two_strategies( data : pd.DataFrame,
 
   print("DESDE cb_difference_between_two_strategies")
   print(diff_var)
+  print("Valor multiplicador")
+  print(output_mults)
 
   #get the data tables and merge them
   datap_base = data[data["strategy_code"]==strategy_code_base][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [diff_var]].reset_index(drop = True)
@@ -533,7 +542,7 @@ def cb_agrc_lvst_productivity(data : pd.DataFrame,
         escalar_prod = 1.2
     
     gdp["value"] *= escalar_prod
-    
+
     gdp.loc[gdp["time_period"]<SSP_GLOBAL_TIME_PERIOD_TX_START, "value"] = 0
   
     gdp = gdp[SSP_GLOBAL_COLNAMES_OF_RESULTS]

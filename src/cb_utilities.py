@@ -263,7 +263,7 @@ def cb_process_interactions(res : pd.DataFrame,
             tx_interacting = tx_interacting[tx_interacting["transformation_code"].isin(tx_in_both)]
 
             if SSP_PRINT_STRATEGIES: 
-                print(f"Resolving Interactions in {interaction} : {', '.join(tx_interacting["transformation_code"].to_list())} ")
+                print(f"Resolving Interactions in {interaction} : {', '.join(tx_interacting['transformation_code'].to_list())} ")
 
             if tx_interacting.shape[0] == 0:
                 if SSP_PRINT_STRATEGIES:
