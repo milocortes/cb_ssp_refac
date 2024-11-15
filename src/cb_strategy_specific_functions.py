@@ -635,6 +635,10 @@ def cb_waso_reduce_consumer_facing_food_waste(data : pd.DataFrame,
                             **additional_args : dict,
                             ) -> pd.DataFrame:
 
+    print("cb_waso_reduce_consumer_facing_food_waste")
+    print(f"Multiplicador : {output_mults}")
+    print(f"Output vars {output_vars}")
+    
     cols_required = ['qty_waso_total_food_produced_tonne', 'qty_agrc_food_produced_lost_sent_to_msw_tonne','factor_waso_waste_per_capita_scalar_food']
 
     food_waste_data = data[data["strategy_code"]==strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + cols_required].reset_index(drop = True)
