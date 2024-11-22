@@ -303,13 +303,13 @@ DATA_FILE_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizac
 cb_reader = CBFilesReader(DATA_FILE_PATH, logger)
 """
 
-crops_vars = [i for i in df.variable.unique() if "cb:agrc:crop_value:crops_produced:" in i]
+# crops_vars = [i for i in df.variable.unique() if "cb:agrc:crop_value:crops_produced:" in i]
 
-crops_vars = [i for i in df["variable"].unique() if "productivity" in i]
+# crops_vars = [i for i in df["variable"].unique() if "productivity" in i]
 
-for crop in crops_vars:
+# for crop in crops_vars:
 
-    consulta = f"sector =='agrc' and cb_type=='capex' and variable =='{crop}'"
-    cb_cols = ["strategy_code", "Year", "value"]
-    df.query(consulta)[cb_cols].pivot(index = "Year", columns = "strategy_code", values = "value").plot.bar(rot=0, title = crop)
-    plt.show()
+#     consulta = f"sector =='agrc' and cb_type=='capex' and variable =='{crop}'"
+#     cb_cols = ["strategy_code", "Year", "value"]
+#     df.query(consulta)[cb_cols].pivot(index = "Year", columns = "strategy_code", values = "value").plot.bar(rot=0, title = crop)
+#     plt.show()
