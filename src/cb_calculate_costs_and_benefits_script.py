@@ -33,9 +33,9 @@ OUTPUT_PATH = build_path([CB_REFAC_PATH, "output"])
 
 #data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_ssp.csv"] )
 #data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_iran.csv"] )
-data_filename = build_path([SSP_RESULTS_DATA_PATH, "iran.csv"] )
-primary_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_PRIMARY.csv"])
-strategy_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_STRATEGY.csv"])
+data_filename = build_path([SSP_RESULTS_DATA_PATH, "new_ssp_results.csv"] )
+primary_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_PRIMARY_new.csv"])
+strategy_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_STRATEGY_new.csv"])
 
 output_file = pd.read_csv(data_filename)
 

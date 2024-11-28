@@ -203,10 +203,10 @@ def cb_difference_between_two_strategies( data : pd.DataFrame,
                                           **additional_args : dict,
                                           ) -> pd.DataFrame:
 
-  print("DESDE cb_difference_between_two_strategies")
-  print(diff_var)
-  print("Valor multiplicador")
-  print(output_mults)
+#   print("DESDE cb_difference_between_two_strategies")
+#   print(diff_var)
+#   print("Valor multiplicador")
+#   print(output_mults)
 
   #get the data tables and merge them
   datap_base = data[data["strategy_code"]==strategy_code_base][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [diff_var]].reset_index(drop = True)
