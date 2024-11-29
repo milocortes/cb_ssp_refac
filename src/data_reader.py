@@ -185,4 +185,3 @@ class CBFilesReader:
 
 
         return  cb_data_enum
-

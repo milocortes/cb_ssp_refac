@@ -28,10 +28,14 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
 
     #cut the list of strategies to evaluate to those that are marked to be evaluated, and that are in the data
     strategy_cost_definitions = strategy_cost_definitions_param.copy()
-    # print(strategy_cost_definitions.head())
     strategy_cost_definitions = strategy_cost_definitions[(strategy_cost_definitions["evaluate_system_costs"] == 1) & (strategy_cost_definitions["strategy_code"].isin(SSP_GLOBAL_list_of_strategies))]
     strategy_code_comparison_mapping  = strategy_cost_definitions[["strategy_code", "comparison_code"]].to_records(index = False)
 
+
+    # print(strategy_cost_definitions)
+
+
+                                    
     # print(strategy_cost_definitions)
 
 
@@ -51,12 +55,11 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
     for strategy_code,comparison_code in strategy_code_comparison_mapping:
         if SSP_PRINT_STRATEGIES:
             # AQUÍ PONDREMOS UN MESSAGE
-            pass
-            # print(f'============Evaluating system costs for {strategy_code} =================')
+            print(f'============Evaluating system costs for {strategy_code} =================')
 
         for cost_factor, (cost_factor_data, cost_factor_function) in cost_factors_mapping.items():
             # AQUÍ PONDREMOS OTRO MESSAGE
-            # print(f"Cost Factor Loop: {strategy_code} vs {comparison_code} for cost factor {cost_factor} and cost factor function {cost_factor_function}")
+            print(f"Cost Factor Loop: {strategy_code} vs {comparison_code} for cost factor {cost_factor} and cost factor function {cost_factor_function}")
 
             # Define argument container
             args_container = {
@@ -77,7 +80,7 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
                 cb_apply_cost_factors(args_container)
               )
 
-    # print('Results: ', results)
+
     cb_results = pd.concat(results, ignore_index = True)
     return cb_results
 
@@ -104,7 +107,7 @@ def cb_apply_cost_factors(
     for i in range(df_cost_factor_data.shape[0]):
       args_cost_factor_container = df_cost_factor_data.iloc[i].to_dict()
 
-      # print(f"---------Costs for: {args_cost_factor_container['output_variable_name']}")
+      print(f"---------Costs for: {args_cost_factor_container['output_variable_name']}")
 
       args_container_to_function.update(
                 args_cost_factor_container
@@ -141,7 +144,7 @@ def cb_calculate_transformation_costs(
   #cut the list of strategies to evaluate to those that are marked to be evaluated, and that are in the data
   strategy_cost_definitions = strategy_cost_definitions_param.copy()
   strategy_cost_definitions = strategy_cost_definitions[(strategy_cost_definitions["evaluate_transformation_costs"] == 1) & (strategy_cost_definitions["strategy_code"].isin(SSP_GLOBAL_list_of_strategies))]
-  # print(strategy_cost_definitions)
+
   strategy_code_comparison_mapping  = strategy_cost_definitions[["strategy_code", "comparison_code"]].to_records(index = False)
 
   #For each strategy, create a set of instructions for calculating transformation-specific costs and benefits
@@ -149,7 +152,9 @@ def cb_calculate_transformation_costs(
   #call the instructions and append them to the list.
   #Note: it is possible we could speed this up by creating a list of all instructions and then running the code once
   #And, the function that calls cb_wrapper could probably be integrated into this function
+
   results = []
+  skipped_strategies = []
 
   strategy_definitions_table = strategy_definitions_table.set_index("strategy_code")
 
@@ -159,26 +164,25 @@ def cb_calculate_transformation_costs(
     strategy_definition = strategy_definition[strategy_definition !=0]
 
     transformations_list = list(strategy_definition.index)
-    # print('transformation_list ', transformations_list)
-    
-    # Compare and find missing items
-    missing_items = [item for item in transformations_list if item not in list(tx_definitions_table['transformation_code'])]
 
-    # Print the missing items
-    if missing_items:
-        print("The following items are not in tx_definition_table:")
-        for item in missing_items:
-            print(item)
-        print(f'Skipping strategy {strategy_code}')
+    ####
+    # print('transformation_list ', transformations_list)
+    # print('-----tx_definitions_table----- \n', tx_definitions_table['transformation_code'])
+
+    # Check if all values are False
+    if not tx_definitions_table["transformation_code"].isin(transformations_list).any():
+        print(f"One of the following transformations {transformations_list} is not in transformation_cost_definition. Skipping...")
+        skipped_strategies.append(strategy_code)
         continue
 
     #update the strategy codes in the definition file
     strategy_cb_table = tx_definitions_table[tx_definitions_table["transformation_code"].isin(transformations_list)]
     strategy_cb_table = strategy_cb_table.replace(np.nan, 0.0)
 
+    print('masking \n', tx_definitions_table["transformation_code"].isin(transformations_list))
     #------Just a debug section------
-    # print(f"The following transformations are in strategy: {strategy_code}")
-    # print('\n'.join('{}: {}'.format(*k) for k in enumerate(transformations_list)))
+    print(f"The following transformations are in strategy: {strategy_code}")
+    print('\n'.join('{}: {}'.format(*k) for k in enumerate(transformations_list)))
 
 
     strategy_cb_table["strategy_code"] = strategy_code
@@ -187,12 +191,14 @@ def cb_calculate_transformation_costs(
     strategy_cb_table["comparison_id"] = comparison_code
     strategy_cb_table["strategy_cb_table"] = comparison_code
 
+    # print('---strategy_cb_table---\n', strategy_cb_table)
 
     results.append(
           cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, cb_data, list_of_variables, SSP_GLOBAL_list_of_strategies)
     )
 
-  # print(results)
+  print(f'---{len(skipped_strategies)} skipped strategies---\n', skipped_strategies)
+  
   results = pd.concat(results, ignore_index = True)
 
   return results
@@ -216,19 +222,21 @@ def cb_calculate_transformation_costs_in_strategy(
 
     strategy_specific_code_comparison_mapping  = strategy_specific_definitions[["strategy_code", "test_id", "comparison_id", "output_variable_name"]].to_records(index = False)
 
-    # for strategy_code, test_id, comparison_id,output_variable_name in strategy_specific_code_comparison_mapping:
-    #   print(f"Evaluating transformation costs for {strategy_code} which is {test_id} vs. {comparison_id} for {output_variable_name}")
+    # print('strategy_specific_code_comparison_mapping: \n', strategy_specific_code_comparison_mapping)
+
+
+    for strategy_code, test_id, comparison_id,output_variable_name in strategy_specific_code_comparison_mapping:
+      print(f"Evaluating transformation costs for {strategy_code} which is {test_id} vs. {comparison_id} for {output_variable_name}")
 
     results = []
 
     nstrat = strategy_specific_definitions.shape[0]
-    # print('nstrat: ', nstrat)
 
     for id_strat in range(nstrat):
       args_container = strategy_specific_definitions.iloc[[id_strat]].to_dict()
       args_container = {i:j[id_strat] for i,j in args_container.items()}
 
-      # print(f"============Evaluating transformation costs for {args_container['strategy_code']}-{args_container['output_variable_name']}")
+      print(f"============Evaluating transformation costs for {args_container['strategy_code']}-{args_container['output_variable_name']}")
       args_container["data"] = data
       args_container["list_of_variables_in_dataset"] = list_of_variables
       args_container["annual change"] = args_container['annual.change']
@@ -239,15 +247,13 @@ def cb_calculate_transformation_costs_in_strategy(
       cb_function = args_container["cb_function"]
 
       #print(f"Usaremos la función específica a la estrategia {mapping_strategy_specific_functions[cb_function]}")
-      # print(f"Usaremos la función específica a la estrategia {cb_function}")
+      print(f"Usaremos la función específica a la estrategia {cb_function}")
       ctcs_resultado = mapping_strategy_specific_functions[cb_function](args_container)
       
       results.append(
         ctcs_resultado
       )
 
-    # print(results)
-    # print(len(results))
     results = pd.concat(results, ignore_index = True)
 
     return results
