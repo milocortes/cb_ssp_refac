@@ -155,6 +155,7 @@ def cb_calculate_transformation_costs(
 
   results = []
   skipped_strategies = []
+  unmatched_transformations = []
 
   strategy_definitions_table = strategy_definitions_table.set_index("strategy_code")
 
@@ -169,20 +170,23 @@ def cb_calculate_transformation_costs(
     # print('transformation_list ', transformations_list)
     # print('-----tx_definitions_table----- \n', tx_definitions_table['transformation_code'])
 
+    #------Just a debug section------
+    print(f"The following transformations are in strategy: {strategy_code}")
+    print('\n'.join('{}: {}'.format(*k) for k in enumerate(transformations_list)))
+
     # Check if all values are False
     if not tx_definitions_table["transformation_code"].isin(transformations_list).any():
-        print(f"One of the following transformations {transformations_list} is not in transformation_cost_definition. Skipping...")
+        print(f"Skipping {strategy_code}: All of the following transformations {transformations_list} are not in transformation_cost_definition.")
         skipped_strategies.append(strategy_code)
+        unmatched_transformations.append('|'.join(transformations_list))
         continue
 
     #update the strategy codes in the definition file
     strategy_cb_table = tx_definitions_table[tx_definitions_table["transformation_code"].isin(transformations_list)]
     strategy_cb_table = strategy_cb_table.replace(np.nan, 0.0)
 
-    print('masking \n', tx_definitions_table["transformation_code"].isin(transformations_list))
-    #------Just a debug section------
-    print(f"The following transformations are in strategy: {strategy_code}")
-    print('\n'.join('{}: {}'.format(*k) for k in enumerate(transformations_list)))
+    # print('masking \n', tx_definitions_table["transformation_code"].isin(transformations_list))
+    
 
 
     strategy_cb_table["strategy_code"] = strategy_code
@@ -197,6 +201,18 @@ def cb_calculate_transformation_costs(
           cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, cb_data, list_of_variables, SSP_GLOBAL_list_of_strategies)
     )
 
+  # Create a DataFrame
+  unmatch_report_data = {
+      "Skipped Strategies": skipped_strategies,
+      "Unmatched Transformations": unmatched_transformations
+  }
+
+  df_unmatch_report = pd.DataFrame(unmatch_report_data)
+
+  # Save to a CSV file
+  df_unmatch_report.to_csv("transformation_unmatch_report.csv", index=False)
+  
+  
   print(f'---{len(skipped_strategies)} skipped strategies---\n', skipped_strategies)
   
   results = pd.concat(results, ignore_index = True)
