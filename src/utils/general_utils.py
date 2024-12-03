@@ -55,7 +55,7 @@ class PreprocessingUtils:
         return cb_input_df.merge(right = pop_livestock_summarized, on = SSP_GLOBAL_SIMULATION_IDENTIFIERS)
     
     
-    def fetch_csv_from_github(url):
+    def fetch_csv_from_github(self, url):
         """
         Fetches a CSV file from a GitHub URL and loads it into a pandas DataFrame.
         Raises an error if the DataFrame is empty.
@@ -109,14 +109,14 @@ class PreprocessingUtils:
         return column_names
     
     
-    def build_attribute_strategy_code(self, url, column_names_url, strategies_list, strategy_data):
+    def build_attribute_strategy_code(self, url, strategies_list, attr_data_df):
         """
         Creates a DataFrame based on transformation specifications and global strategies.
 
         Parameters:
         column_names_url (str): The raw URL to the GitHub CSV file for column names.
         strategies_list (list): A list of strategy codes to populate the `strategy_code` column.
-        strategy_data (pd.DataFrame): DataFrame containing the `transformation_specification` column.
+        attr_data_df (pd.DataFrame): DataFrame containing the `transformation_specification` column.
 
         Returns:
         pd.DataFrame: A DataFrame with strategy codes and transformations as 0 or 1.
@@ -132,7 +132,7 @@ class PreprocessingUtils:
         # Step 3: Populate the DataFrame with 1s based on transformations
         for strategy_code in strategies_list:
             # Filter the input DataFrame for the current strategy
-            strategy_row = strategy_data[strategy_data['strategy_code'] == strategy_code]
+            strategy_row = attr_data_df[attr_data_df['strategy_code'] == strategy_code]
 
             if not strategy_row.empty:
                 # Get the transformation_specification
