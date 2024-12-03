@@ -33,7 +33,7 @@ OUTPUT_PATH = build_path([CB_REFAC_PATH, "output"])
 
 #data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_ssp.csv"] )
 #data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_iran.csv"] )
-data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_2024-11-26T21;59;32.036914_WIDE_INPUTS_OUTPUTS.csv"] )
+data_filename = build_path([SSP_RESULTS_DATA_PATH, "sisepuede_results_sisepuede_run_2024-11-26T21;59;32.036914_WIDE_INPUTS_OUTPUTS.zip"] )
 primary_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_PRIMARY.csv"])
 strategy_filename = build_path([SSP_RESULTS_DATA_PATH, "ATTRIBUTE_STRATEGY.csv"])
 
