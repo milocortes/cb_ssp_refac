@@ -146,5 +146,6 @@ class PreprocessingUtils:
                     for transformation in transformation_list:
                         if transformation in column_names:
                             df.loc[df['strategy_code'] == strategy_code, transformation] = 1
-
+        
+        df.reset_index(drop=True, inplace=True)
         return df
