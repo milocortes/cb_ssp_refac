@@ -149,3 +149,29 @@ class PreprocessingUtils:
         
         df.reset_index(drop=True, inplace=True)
         return df
+    
+    
+    def build_strategy_cost_instructions(self, strategies_list, comparison_code):
+        """
+        Builds a DataFrame to represent strategy cost instructions.
+
+        Parameters:
+        strategies_list (list): A list of strategy codes to populate the `strategy_code` column.
+        comparison_code (str or int): The value to populate the `comparison_code` column.
+
+        Returns:
+        pd.DataFrame: A DataFrame with strategy codes and cost evaluation instructions.
+        """
+        # Init df
+        df = pd.DataFrame({
+            'strategy_code': strategies_list,
+            'comparison_code': comparison_code,
+            'evaluate_system_costs': 1,
+            'evaluate_transformation_costs': 1
+        })
+
+        # Reset the index to ensure numerical indexing
+        df.reset_index(drop=True, inplace=True)
+
+        return df
+
