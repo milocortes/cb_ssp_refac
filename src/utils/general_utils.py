@@ -27,6 +27,82 @@ class PreprocessingUtils:
         
         return merged_attributes
     
+    
+    def remove_suffix_from_transformations(self, attr_df):
+        """
+        Removes specific suffixes from the `transformation_specification` column of a DataFrame.
+
+        Parameters:
+        attr_df (pd.DataFrame): DataFrame containing the `transformation_specification` column.
+
+        Returns:
+        pd.DataFrame: A DataFrame with suffixes removed from the `transformation_specification` column.
+        """
+        df = attr_df.copy()
+
+        # List of suffixes to remove
+        suffixes_to_remove = [
+            "_LOW", "_LOWEST", "_HIGHEST", "_HIGHER", "_HIGH", "_LOWER",
+            "_FROMTECH", "_URBPLAN"
+        ]
+
+        # Compile regex pattern to match any of the suffixes at the end of a word
+        pattern = re.compile(r'(' + '|'.join(re.escape(suffix) for suffix in suffixes_to_remove) + r')$')
+
+        # Function to clean transformation specifications
+        def clean_transformation_specification(specification):
+            transformations = specification.split('|')  # Split by |
+            cleaned_transformations = [
+                re.sub(pattern, '', t) for t in transformations
+            ]
+            return '|'.join(cleaned_transformations)
+
+        # Apply the cleaning function to the transformation_specification column
+        df['transformation_specification'] = df['transformation_specification'].apply(clean_transformation_specification)
+
+        return df
+
+    def check_missing_transformations(self, attributes_df, transformation_cost_definitions):
+        """
+        Checks for missing transformations in the transformation cost definitions.
+
+        Parameters:
+        attributes_df (pd.DataFrame): DataFrame containing the 'transformation_specification' column.
+        transformation_cost_definitions (pd.DataFrame): DataFrame containing the 'transformation_code' column.
+
+        Returns:
+        None: Prints a report of missing transformations and writes them to a CSV file.
+        """
+        # Extract transformations from attributes_df
+        transformations_series = attributes_df['transformation_specification'].dropna()  # Ensure no NaN values
+        experiment_transformations = set(
+            val for row in transformations_series for val in row.split('|')
+        )
+        
+        # Extract transformations from transformation_cost_definitions
+        tf_costs_transformations = set(transformation_cost_definitions['transformation_code'])
+        
+        # Identify missing transformations
+        missing_transformations = experiment_transformations - tf_costs_transformations
+        
+        if missing_transformations:
+            # Create a DataFrame for missing transformations
+            df = pd.DataFrame(missing_transformations, columns=['missing_transformations'])
+            
+            # Print missing transformations
+            print(
+                "The following transformations are not in the transformation_cost_definitions file. "
+                "Please update it to avoid affecting the calculation of transformation costs:\n",
+                missing_transformations
+            )
+            
+            # Save the report to a CSV file
+            output_path = 'debug/missing_transformations_report.csv'
+            df.to_csv(output_path, index=False)
+            print(f"Missing transformations report saved to: {output_path}")
+        else:
+            print("No missing transformations. OK!")
+
     def get_cols_to_keep(self, col_names):
 
         """
