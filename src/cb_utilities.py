@@ -146,6 +146,7 @@ def cb_calculate_transformation_costs(
   #And, the function that calls cb_wrapper could probably be integrated into this function
 
   results = []
+  log_tx_missings_in_strat = []
 
   strategy_definitions_table = strategy_definitions_table.set_index("strategy_code")
 
@@ -164,20 +165,30 @@ def cb_calculate_transformation_costs(
     print(f"The following transformations are in strategy: {strategy_code}")
     print('\n'.join('{}: {}'.format(*k) for k in enumerate(transformations_list)))
 
+    if not strategy_cb_table.empty:
+      strategy_cb_table["strategy_code"] = strategy_code
+      strategy_cb_table["test_id"] = strategy_code
+      strategy_cb_table["comparison_id"] = comparison_code
+      strategy_cb_table["comparison_id"] = comparison_code
+      strategy_cb_table["strategy_cb_table"] = comparison_code
 
-    strategy_cb_table["strategy_code"] = strategy_code
-    strategy_cb_table["test_id"] = strategy_code
-    strategy_cb_table["comparison_id"] = comparison_code
-    strategy_cb_table["comparison_id"] = comparison_code
-    strategy_cb_table["strategy_cb_table"] = comparison_code
+      
+      results.append(
+            cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, cb_data, list_of_variables, SSP_GLOBAL_list_of_strategies)
+      )
+    else:
+      for tx_missing in transformations_list:
+        log_tx_missings_in_strat.append([strategy_code, tx_missing, "MISSING"])
 
-    results.append(
-          cb_calculate_transformation_costs_in_strategy(data, strategy_cb_table, cb_data, list_of_variables, SSP_GLOBAL_list_of_strategies)
-    )
+    if not strategy_cb_table.empty:
+          
+      for tx_missing in transformations_list:
+        log_tx_missings_in_strat.append([strategy_code, tx_missing, "NO-MISSING"])
 
   results = pd.concat(results, ignore_index = True)
+  log_tx_missings_in_strat = pd.DataFrame(log_tx_missings_in_strat, columns = ["strategy_code", "tx", "status"]).query("tx!='TX:LNDU:PLUR'")
 
-  return results
+  return results,log_tx_missings_in_strat
 
 
 #This function loops through a strategy-specific cost benefit definition created by the 
