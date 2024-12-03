@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import re
 from cb_config import *
+import yaml
 
 
 class PreprocessingUtils:
@@ -11,7 +12,43 @@ class PreprocessingUtils:
 
     def build_path(self, PATH):
         return os.path.abspath(os.path.join(*PATH))
-        
+    
+    def load_parameters_from_yaml(self, yaml_file_path):
+        """
+        Loads parameters from a YAML file.
+
+        Parameters:
+        yaml_file_path (str): Path to the YAML file.
+
+        Returns:
+        dict: A dictionary containing the loaded parameters.
+        """
+        try:
+            with open(yaml_file_path, 'r') as file:
+                params = yaml.safe_load(file)
+
+            # Extract and validate required parameters
+            required_keys = [
+                'country_id',
+                'attr_primary_file_name',
+                'attr_strategy_file_name',
+                'ssp_output_data_file_name',
+                'comparison_strategy_code',
+                'transformation_names_url'
+            ]
+            
+            missing_keys = [key for key in required_keys if key not in params]
+            if missing_keys:
+                raise ValueError(f"Missing required parameters in YAML file: {', '.join(missing_keys)}")
+            
+            # Return the parameters as a dictionary
+            return {key: params[key] for key in required_keys}
+    
+        except FileNotFoundError:
+            raise FileNotFoundError(f"The specified YAML file was not found: {yaml_file_path}")
+        except yaml.YAMLError as e:
+            raise ValueError(f"Error parsing YAML file: {e}")
+            
     def merge_attribute_files(self, primary_filename : str, attribute_filename : str) -> pd.DataFrame:
         
         """
@@ -84,6 +121,7 @@ class PreprocessingUtils:
         
         # Identify missing transformations
         missing_transformations = experiment_transformations - tf_costs_transformations
+        missing_transformations = sorted(missing_transformations)
         
         if missing_transformations:
             # Create a DataFrame for missing transformations
@@ -250,4 +288,44 @@ class PreprocessingUtils:
         df.reset_index(drop=True, inplace=True)
 
         return df
+    
+
+    def perform_postprocessing(self, results_all_pp):
+        #POST PROCESS TRANSPORT CB ISSUES (These should be addressed properly in the next round of analysis)
+        #congestion and safety benefits should be 0 in strategies that only make fuel efficiency gains and fuel switching
+
+        df = results_all_pp.copy()
+
+        cond_transport_cb_issues_better_base = (df["strategy_code"]=="PFLO:BETTER_BASE") & (df["variable"].apply(lambda x : any(k in x for k in ["congestion", "road_safety"])))
+        cond_transport_cb_issues_supply_side_tech = (df["strategy_code"]=="PFLO:SUPPLY_SIDE_TECH") & (df["variable"].apply(lambda x : any(k in x for k in ["congestion", "road_safety"])))
+
+        df.loc[cond_transport_cb_issues_better_base, "value"] = 0.0
+        df.loc[cond_transport_cb_issues_supply_side_tech, "value"] = 0.0
+
+        #in ALL, cut the benefits in half to be on the safe side.
+        cond_cut_ben_in_half_all_plur =  (df["strategy_code"]=="PFLO:ALL_PLUR") & (df["variable"].apply(lambda x : any(k in x for k in ["congestion", "road_safety"])))
+        cond_cut_ben_in_half_all_non_stopping_def_plur =  (df["strategy_code"]=='PFLO:ALL_NO_STOPPING_DEFORESTATION_PLUR') & (df["variable"].apply(lambda x : any(k in x for k in ["congestion", "road_safety"])))
+
+        df.loc[cond_cut_ben_in_half_all_plur, "value"] *= 0.5 
+        df.loc[cond_cut_ben_in_half_all_non_stopping_def_plur, "value"] *= 0.5 
+
+        #POST PROCESS WASO CB ISSUES
+        #where moving from incineration to landfilling appears to have benefits
+        #when this move should probably not occur
+        cond_waso_cb_issue =  (df["strategy_code"]=="PFLO:SUPPLY_SIDE_TECH") & (df["variable"].apply(lambda x : any(k in x for k in ["cb:waso:technical_cost:waste_management"])))
+        df.loc[cond_waso_cb_issue, "value"] = 0.0
+
+
+        #SHIFT any stray costs incurred from 2015 to 2025 to 2025 and 2035
+        results_all_pp_before_shift = df.copy() #keep copy of earlier results just in case/for comparison
+        res_pre2025 = df.query(f"time_period<{SSP_GLOBAL_TIME_PERIOD_TX_START}")#get the subset of early costs
+        res_pre2025["variable"] = res_pre2025["variable"] + "_shifted" + (res_pre2025["time_period"]+SSP_GLOBAL_TIME_PERIOD_0).astype(str)#create a new variable so they can be recognized as shifted costs
+        res_pre2025["time_period"] = res_pre2025["time_period"]+SSP_GLOBAL_TIME_PERIOD_TX_START #shift the time period
+
+        df = pd.concat([df, res_pre2025], ignore_index = True) #paste the results
+
+        df.loc[df["time_period"]<SSP_GLOBAL_TIME_PERIOD_TX_START,'value'] = 0 #set pre-2025 costs to 0
+
+        return df
+
 
