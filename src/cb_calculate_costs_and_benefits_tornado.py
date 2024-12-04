@@ -222,6 +222,8 @@ print(
 
 transformation_cost_definitions.transformation_code = transformation_cost_definitions.transformation_code.replace(actualiza_claves_tx)
 
+#strategy2tx = strategy2tx.rename(columns={ "TX:LNDU:DEC_DEFORESTATION" : "TX:LNDU:DEC_DEFORESTATION_AND_INC_SILVOPASTURE"})
+
 results_tx, log_results_tx = cb_calculate_transformation_costs(data, 
                                   strategy_cost_instructions,
                                   strategy2tx, 
@@ -233,7 +235,6 @@ results_tx, log_results_tx = cb_calculate_transformation_costs(data,
 RESULTS_SYSTEMS_PATH = build_path([OUTPUT_PATH, "python", "results_system_python.csv"])
 RESULTS_TX_SYSTEMS_PATH = build_path([OUTPUT_PATH, "python", "results_tx_python.csv"])
 
-
 #combine the results
 results_all = pd.concat([results_system, results_tx], ignore_index = True)
 
@@ -243,6 +244,8 @@ SSP_GLOBAL_list_of_cbvars = results_all["variable"].unique()
 #-------------POST PROCESS SIMULATION RESULTS---------------
 #Post process interactions among strategies that affect the same variables
 postprocess_interactions = pd.read_csv(build_path([DEFINITION_FILES_PATH, 'strategy_interaction_definitions.csv']))
+
+#strategy2tx = strategy2tx.rename(columns={ "TX:LNDU:DEC_DEFORESTATION_AND_INC_SILVOPASTURE" : "TX:LNDU:DEC_DEFORESTATION"})
 
 results_all_pp = cb_process_interactions(results_all, strategy2tx, postprocess_interactions)
 
@@ -317,3 +320,4 @@ for crop in crops_vars:
     cb_cols = ["strategy_code", "Year", "value"]
     df.query(consulta)[cb_cols].pivot(index = "Year", columns = "strategy_code", values = "value").plot.bar(rot=0, title = crop)
     plt.show()
+
