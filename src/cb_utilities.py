@@ -8,7 +8,7 @@ import numpy as np
 import copy
 import re
 
-from cb_strategy_specific_functions import cb_difference_between_two_strategies
+from cb_strategy_specific_functions import cb_difference_between_two_strategies,cb_get_data_from_wide_to_long
 
 global SSP_GLOBAL_list_of_variables 
 
@@ -71,6 +71,60 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
               results.append(
                 cb_apply_cost_factors(args_container)
               )
+            elif cost_factor_function=='cb_wali_sanitation_costs':
+
+
+              sanitation_classification = cb_data.StrategySpecificCBData['WALI_sanitation_classification_strategy_specific_function']
+
+              #Calculate the number of people in each sanitation pathway by merging the data with the sanitation classification
+              #and with the population data and keepign onyl rows where the population_variable matches the variable.pop
+              #then multiply the fraction by the population
+              #There was concern that we need to account for differences in ww production between urban and rural
+              #But we don't since the pathway fractions for them are mutually exclusive! Hooray!
+
+              data_strategy = cb_get_data_from_wide_to_long(data, strategy_code, sanitation_classification["variable"].to_list())
+              data_strategy = data_strategy.merge(right = sanitation_classification, on='variable')
+
+
+              population = cb_get_data_from_wide_to_long(data, strategy_code, ['population_gnrl_rural', 'population_gnrl_urban'])
+              data_strategy = data_strategy.merge(right = population, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
+              data_strategy = data_strategy[data_strategy["population_variable"].isin(data_strategy["variable.pop"])].reset_index()
+              data_strategy["pop_in_pathway"] = data_strategy["value"]*data_strategy["value.pop"]
+
+
+              #Do the same thing with the baseline strategy
+              data_base = cb_get_data_from_wide_to_long(data, comparison_code, sanitation_classification["variable"].to_list())
+              data_base = data_base.merge(right = sanitation_classification, on = 'variable')
+
+            
+              population_base = cb_get_data_from_wide_to_long(data, comparison_code, ['population_gnrl_rural', 'population_gnrl_urban'])
+            
+              data_base = data_base.merge(right = population_base, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
+
+              data_base = data_base[data_base["population_variable"].isin(data_base["variable.pop"])].reset_index(drop = True)
+              data_base["pop_in_pathway"] = data_base["value"]*data_base["value.pop"]
+            
+              data_new = pd.concat([data_strategy, data_base], ignore_index = True)
+            
+              #reduce it by the sanitation category
+
+              gp_vars = ["primary_id", "region", "time_period", "strategy_code", "future_id", "difference_variable"]
+
+              data_new_summarized = data_new.groupby(gp_vars).agg({"pop_in_pathway" : "sum"}).rename(columns = {"pop_in_pathway" : "value"}).reset_index()
+              data_new_summarized = data_new_summarized.rename(columns = {"difference_variable" : "variable"})
+            
+              new_list_of_variables = data_new_summarized["variable"].unique()  
+              
+              pivot_index_vars = [i for i in data_new_summarized.columns if i not in ["variable", "value"]]
+              data_new_summarized_wide = data_new_summarized.pivot(index = pivot_index_vars, columns="variable", values="value").reset_index()  
+
+              args_container["data"] = data.merge(right=data_new_summarized_wide, on = ['primary_id', 'region', 'time_period', 'future_id', 'strategy_code'])
+              args_container["list_of_variables_in_dataset"] += ["pop_unimproved_rural", "pop_improved_rural", "pop_safelymanaged_rural", "pop_unimproved_urban", "pop_improved_urban", "pop_safelymanaged_urban", "pop_omit_rural"]
+              results.append(
+                #mapping_strategy_specific_functions["cb_wali_sanitation_costs"](args_container)
+                cb_apply_cost_factors(args_container)
+              )
+
 
 
     cb_results = pd.concat(results, ignore_index = True)

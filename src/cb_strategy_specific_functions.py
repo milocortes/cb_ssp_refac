@@ -34,7 +34,10 @@ def cb_wrapper(func):
 
         ## Get all variable matches on difference_variable
         diff_var = args_container_to_function_param["difference_variable"].replace("*", ".*")
+        print(diff_var)
+        print(final_arg_container["data"][-5:][final_arg_container["data"].columns[-4:]])
         diff_var_list = [string for string in final_arg_container["list_of_variables"] if  re.match(re.compile(diff_var), string)]
+
 
         if not diff_var_list:
           print(f'ERROR IN CB_WRAPPER: No variables match : {diff_var}')
@@ -678,6 +681,12 @@ def cb_waso_reduce_consumer_facing_food_waste(data : pd.DataFrame,
 #----------WALI:SANITATION COSTS AND BENEFITS------------------
 @cb_wrapper
 def cb_wali_sanitation_costs(data : pd.DataFrame, 
+                            strategy_code_tx : str, 
+                            strategy_code_base : str, 
+                            diff_var : str, 
+                            output_vars : str, 
+                            output_mults : float, 
+                            change_in_multiplier : float, 
                             list_of_variables : list,
                             **additional_args : dict,
                             ) -> pd.DataFrame:
@@ -690,22 +699,22 @@ def cb_wali_sanitation_costs(data : pd.DataFrame,
     #There was concern that we need to account for differences in ww production between urban and rural
     #But we don't since the pathway fractions for them are mutually exclusive! Hooray!
 
-    data_strategy = cb_get_data_from_wide_to_long(data, definition["strategy_code"].to_list(), sanitation_classification["variable"].to_list())
+    data_strategy = cb_get_data_from_wide_to_long(data, strategy_code_tx, sanitation_classification["variable"].to_list())
     data_strategy = data_strategy.merge(right = sanitation_classification, on='variable')
 
 
-    population = cb_get_data_from_wide_to_long(data, definition["strategy_code"].to_list(), ['population_gnrl_rural', 'population_gnrl_urban'])
+    population = cb_get_data_from_wide_to_long(data, strategy_code_tx, ['population_gnrl_rural', 'population_gnrl_urban'])
     data_strategy = data_strategy.merge(right = population, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
     data_strategy = data_strategy[data_strategy["population_variable"].isin(data_strategy["variable.pop"])].reset_index()
     data_strategy["pop_in_pathway"] = data_strategy["value"]*data_strategy["value.pop"]
 
 
     #Do the same thing with the baseline strategy
-    data_base = cb_get_data_from_wide_to_long(data, definition["comparison_code"].to_list(), sanitation_classification["variable"].to_list())
+    data_base = cb_get_data_from_wide_to_long(data, strategy_code_base, sanitation_classification["variable"].to_list())
     data_base = data_base.merge(right = sanitation_classification, on = 'variable')
 
   
-    population_base = cb_get_data_from_wide_to_long(data, definition["comparison_code"].to_list(), ['population_gnrl_rural', 'population_gnrl_urban'])
+    population_base = cb_get_data_from_wide_to_long(data, strategy_code_base, ['population_gnrl_rural', 'population_gnrl_urban'])
   
     data_base = data_base.merge(right = population_base, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
 
@@ -721,19 +730,33 @@ def cb_wali_sanitation_costs(data : pd.DataFrame,
     data_new_summarized = data_new.groupby(gp_vars).agg({"pop_in_pathway" : "sum"}).rename(columns = {"pop_in_pathway" : "value"}).reset_index()
     data_new_summarized = data_new_summarized.rename(columns = {"difference_variable" : "variable"})
   
-    #now, being geniuses, we can run this using our cb_cost_factors function!
-    new_definition = pd.DataFrame({"strategy_code" : definition["strategy_code"], 
-                                    "comparison_code" : definition["comparison_code"]})
-    
-    new_list_of_variables = data_new_summarized["variable"].unique().to_list()  
+    new_list_of_variables = data_new_summarized["variable"].unique()  
     
     pivot_index_vars = [i for i in data_new_summarized.columns if i not in ["variable", "value"]]
-    data_new_summarized_wide = df.pivot(index = pivot_index_vars, columns="variable", values="value").reset_index()
+    data_new_summarized_wide = data_new_summarized.pivot(index = pivot_index_vars, columns="variable", values="value").reset_index()  
 
+
+    #### cb_apply_cost_factors 
+    container_to_function = copy.deepcopy(additional_args)
+    container_to_function["data"] = data.merge(right=data_new_summarized_wide, on = ['primary_id', 'region', 'time_period', 'future_id', 'strategy_code'])
+    container_to_function["strategy_code"] = strategy_code_tx
+    container_to_function["comparison_code"] = strategy_code_base
+    container_to_function["diff_var"] = diff_var
+    container_to_function["output_variable_name"] = output_vars
+    container_to_function["output_vars"] = output_vars
+    container_to_function["output_mults"] = output_mults
+    container_to_function["annual change"] = change_in_multiplier
+    container_to_function["list_of_variables_in_dataset"] = list_of_variables + ["pop_unimproved_rural", "pop_improved_rural", "pop_safelymanaged_rural", "pop_unimproved_urban", "pop_improved_urban", "pop_safelymanaged_urban", "pop_omit_rural"]
     
-    results = cb_apply_cost_factors(data_new_summarized_wide, new_definition, sanitation_cost_factors, new_list_of_variables)
+    container_to_function["cost_factor_data"] = additional_args["cb_data"].StrategySpecificCBData["wali_sanitation_cost_factors"]
+    
+    results = cb_apply_cost_factors(container_to_function)
 
-    return results
+    container_to_function["cost_factor_data"] = additional_args["cb_data"].StrategySpecificCBData["wali_benefit_of_sanitation_cost_factors"]
+
+    results_benefits = cb_apply_cost_factors(container_to_function)
+
+    return pd.concat([results, results_benefits], ignore_index = True)
 
 #----------IPPU:CLINKER------------------}
 @cb_wrapper
