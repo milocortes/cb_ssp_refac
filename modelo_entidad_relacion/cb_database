@@ -1,0 +1,399 @@
+CREATE TABLE tx_table (
+	output_variable_name VARCHAR PRIMARY KEY, 
+	output_display_name VARCHAR, 
+	internal_notes VARCHAR, 
+	display_notes VARCHAR, 
+	cost_type VARCHAR
+);
+
+CREATE TABLE transformation_cost (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	transformation_code VARCHAR, 
+	include BOOLEAN, 
+	include_variant DECIMAL, 
+	test_id_variant_suffix VARCHAR, 
+	comparison_id_variant VARCHAR, 
+	cb_function VARCHAR, 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change DECIMAL, 
+	arg1 VARCHAR, 
+	arg2 DECIMAL, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR
+);
+
+CREATE TABLE strategy_interaction_definitions (
+	variable VARCHAR, 
+	interaction_name VARCHAR, 
+	transformation_code VARCHAR, 
+	relative_effect DECIMAL, 
+	scale_variable BOOLEAN
+);
+
+
+CREATE TABLE entc_air_pollution_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE waso_pollution_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE soil_nitrogen_and_lime_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE ippu_avoided_production_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE trww_treatment_water_pollution_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE trww_treatment_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE afolu_crop_livestock_production_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE trns_air_pollution_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE ghg_effects_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE entc_production_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE trns_road_safety_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE enfu_fuel_cost_factors_detail (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE inen_air_pollution_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE trww_waste_to_energy_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE wali_sanitation_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE trns_congestion_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE enfu_sector_fuel_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE entc_sector_electricity_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE enfu_fuel_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE waso_waste_collection_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE wali_benefit_of_sanitation_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE waso_waste_management_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE trns_passenger_transport_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE afolu_ecosystem_services_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE lsmm_waste_to_energy_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE ippu_avoided_air_pollution_cement_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE trns_freight_transport_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);
+CREATE TABLE waso_waste_to_energy_cost_factors (
+	output_variable_name VARCHAR REFERENCES tx_table( output_variable_name ), 
+	difference_variable VARCHAR, 
+	multiplier DECIMAL, 
+	multiplier_unit VARCHAR, 
+	annual_change BOOLEAN, 
+	output_display_name VARCHAR, 
+	sum BOOLEAN, 
+	natural_multiplier_units VARCHAR, 
+	display_notes VARCHAR, 
+	internal_notes VARCHAR, 
+	cb_function VARCHAR
+);

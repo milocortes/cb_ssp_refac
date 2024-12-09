@@ -1,0 +1,37 @@
+output_variable_name,difference_variable,multiplier,multiplier_unit,annual_change,output_display_name,sum,natural_multiplier_units,display_notes,internal_notes,cb_function
+cb:trns:system_cost:passenger_transport:aviation,passenger_distance_traveled_trns_aviation,-0.06,$/pkm,1,Cost of passenger transport (aviation),0,$0.06/pkm for aviation,"Different vehicles have different ownership and operating costs. In the US, the capital and operating cost (excluding fuel) is approximately: 
+Â¥	$0.31/vkm for automobiles (US DOT National Transportation Statistics, undated, Table 3-17)
+Â¥	$10/vkm on for buses (averaged across bus types) and $27/vkm (per passenger car) for passenger rail (averaged across rail types) (US FTA, 2021, Capital Expenses, Operating Expenses, and Metrics tables)
+Â¥	$2000/vkm for aviation (calculated from US DOT National Transportation Statistics Table 1-35, 1-40, and 3-20, assuming 10% of costs are for fuel). 
+Â¥	$0.031/vkm for powered bikes, which we assume cost 1/10th of automobiles. 
+We adapt these costs to Latin America. ",none,cb_apply_cost_factors
+cb:trns:system_cost:passenger_transport:powered_bikes,vehicle_distance_traveled_trns_powered_bikes,-0.017,$/vkm,1,Cost of passenger transport (powered bikes),0,$0.017/vkm for motorcycles,"Different vehicles have different ownership and operating costs. In the US, the capital and operating cost (excluding fuel) is approximately: 
+Â¥	$0.31/vkm for automobiles (US DOT National Transportation Statistics, undated, Table 3-17)
+Â¥	$10/vkm on for buses (averaged across bus types) and $27/vkm (per passenger car) for passenger rail (averaged across rail types) (US FTA, 2021, Capital Expenses, Operating Expenses, and Metrics tables)
+Â¥	$2000/vkm for aviation (calculated from US DOT National Transportation Statistics Table 1-35, 1-40, and 3-20, assuming 10% of costs are for fuel). 
+Â¥	$0.031/vkm for powered bikes, which we assume cost 1/10th of automobiles. 
+We adapt these costs to Latin America. ",none,cb_apply_cost_factors
+cb:trns:system_cost:passenger_transport:public,vehicle_distance_traveled_trns_public,-7.4,$/vkm,1,Cost of passenger transport (public),0,$5.20/vkm for bus and $14/vkm for rail,"Different vehicles have different ownership and operating costs. In the US, the capital and operating cost (excluding fuel) is approximately: 
+Â¥	$0.31/vkm for automobiles (US DOT National Transportation Statistics, undated, Table 3-17)
+Â¥	$10/vkm on for buses (averaged across bus types) and $27/vkm (per passenger car) for passenger rail (averaged across rail types) (US FTA, 2021, Capital Expenses, Operating Expenses, and Metrics tables)
+Â¥	$2000/vkm for aviation (calculated from US DOT National Transportation Statistics Table 1-35, 1-40, and 3-20, assuming 10% of costs are for fuel). 
+Â¥	$0.031/vkm for powered bikes, which we assume cost 1/10th of automobiles. 
+We adapt these costs to Latin America. ",none,cb_apply_cost_factors
+cb:trns:system_cost:passenger_transport:rail_passenger,vehicle_distance_traveled_trns_rail_passenger,-14.0,$/vkm,1,Cost of passenger transport (rail),0,$14/vkm for passenger rail,"Different vehicles have different ownership and operating costs. In the US, the capital and operating cost (excluding fuel) is approximately: 
+Â¥	$0.31/vkm for automobiles (US DOT National Transportation Statistics, undated, Table 3-17)
+Â¥	$10/vkm on for buses (averaged across bus types) and $27/vkm (per passenger car) for passenger rail (averaged across rail types) (US FTA, 2021, Capital Expenses, Operating Expenses, and Metrics tables)
+Â¥	$2000/vkm for aviation (calculated from US DOT National Transportation Statistics Table 1-35, 1-40, and 3-20, assuming 10% of costs are for fuel). 
+Â¥	$0.031/vkm for powered bikes, which we assume cost 1/10th of automobiles. 
+We adapt these costs to Latin America. ",none,cb_apply_cost_factors
+cb:trns:system_cost:passenger_transport:road_heavy_regional,vehicle_distance_traveled_trns_road_heavy_regional,-5.2,$/vkm,1,Cost of passenger transport (bus),0,$5.20/vkm for bus,"Different vehicles have different ownership and operating costs. In the US, the capital and operating cost (excluding fuel) is approximately: 
+Â¥	$0.31/vkm for automobiles (US DOT National Transportation Statistics, undated, Table 3-17)
+Â¥	$10/vkm on for buses (averaged across bus types) and $27/vkm (per passenger car) for passenger rail (averaged across rail types) (US FTA, 2021, Capital Expenses, Operating Expenses, and Metrics tables)
+Â¥	$2000/vkm for aviation (calculated from US DOT National Transportation Statistics Table 1-35, 1-40, and 3-20, assuming 10% of costs are for fuel). 
+Â¥	$0.031/vkm for powered bikes, which we assume cost 1/10th of automobiles. 
+We adapt these costs to Latin America. ",none,cb_apply_cost_factors
+cb:trns:system_cost:passenger_transport:road_light,vehicle_distance_traveled_trns_road_light,-0.17,$/vkm,1,Cost of passenger transport (light vehicle),0,$0.17/vkm for automobiles,"Different vehicles have different ownership and operating costs. In the US, the capital and operating cost (excluding fuel) is approximately: 
+Â¥	$0.31/vkm for automobiles (US DOT National Transportation Statistics, undated, Table 3-17)
+Â¥	$10/vkm on for buses (averaged across bus types) and $27/vkm (per passenger car) for passenger rail (averaged across rail types) (US FTA, 2021, Capital Expenses, Operating Expenses, and Metrics tables)
+Â¥	$2000/vkm for aviation (calculated from US DOT National Transportation Statistics Table 1-35, 1-40, and 3-20, assuming 10% of costs are for fuel). 
+Â¥	$0.031/vkm for powered bikes, which we assume cost 1/10th of automobiles. 
+We adapt these costs to Latin America. ",none,cb_apply_cost_factors
