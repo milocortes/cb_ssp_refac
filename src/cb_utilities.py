@@ -72,8 +72,8 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
                 cb_apply_cost_factors(args_container)
               )
             elif cost_factor_function=='cb_wali_sanitation_costs':
-
-
+              print("Seguimos trabajando en cb_wali_sanitation_costs")
+              """
               sanitation_classification = cb_data.StrategySpecificCBData['WALI_sanitation_classification_strategy_specific_function']
 
               #Calculate the number of people in each sanitation pathway by merging the data with the sanitation classification
@@ -119,12 +119,15 @@ def cb_calculate_system_costs(data : pd.DataFrame, # SSP data output
               data_new_summarized_wide = data_new_summarized.pivot(index = pivot_index_vars, columns="variable", values="value").reset_index()  
 
               args_container["data"] = data.merge(right=data_new_summarized_wide, on = ['primary_id', 'region', 'time_period', 'future_id', 'strategy_code'])
+              
               args_container["list_of_variables_in_dataset"] += ["pop_unimproved_rural", "pop_improved_rural", "pop_safelymanaged_rural", "pop_unimproved_urban", "pop_improved_urban", "pop_safelymanaged_urban", "pop_omit_rural"]
+              args_container["cb_data"] = cb_data
+              
               results.append(
                 #mapping_strategy_specific_functions["cb_wali_sanitation_costs"](args_container)
                 cb_apply_cost_factors(args_container)
               )
-
+              """
 
 
     cb_results = pd.concat(results, ignore_index = True)
@@ -159,11 +162,18 @@ def cb_apply_cost_factors(
                 args_cost_factor_container
       )
 
-      cb_results.append(
-          cb_difference_between_two_strategies(
-              args_container_to_function
-          )
-      )
+      if args_container_to_function["cost_factor_function"] == 'cb_wali_sanitation_costs':
+        cb_results.append(
+            mapping_strategy_specific_functions["cb_wali_sanitation_costs"](
+                args_container_to_function
+            )
+        )
+      else:
+        cb_results.append(
+            cb_difference_between_two_strategies(
+                args_container_to_function
+            )
+        )
 
     if not all(elem is None for elem in cb_results):
       cb_results = pd.concat(cb_results, ignore_index = True)

@@ -35,7 +35,7 @@ def cb_wrapper(func):
         ## Get all variable matches on difference_variable
         diff_var = args_container_to_function_param["difference_variable"].replace("*", ".*")
         print(diff_var)
-        print(final_arg_container["data"][-5:][final_arg_container["data"].columns[-4:]])
+        #print(final_arg_container["data"][-5:][final_arg_container["data"].columns[-4:]])
         diff_var_list = [string for string in final_arg_container["list_of_variables"] if  re.match(re.compile(diff_var), string)]
 
 
@@ -485,6 +485,7 @@ def cb_pflo_healthier_diets(data : pd.DataFrame,
                             **additional_args : dict,
                             ) -> pd.DataFrame:
 
+    print("CORRIENDO CB_PFLO_HEALTHIER_DIETS")
     #Get the population
     population = cb_get_data_from_wide_to_long(data, strategy_code_tx, ['population_gnrl_rural', 'population_gnrl_urban'])
     
@@ -684,13 +685,15 @@ def cb_wali_sanitation_costs(data : pd.DataFrame,
                             strategy_code_tx : str, 
                             strategy_code_base : str, 
                             diff_var : str, 
-                            output_vars : str, 
+                            output_variable_name : str, 
                             output_mults : float, 
                             change_in_multiplier : float, 
                             list_of_variables : list,
                             **additional_args : dict,
                             ) -> pd.DataFrame:
 
+    print(data)
+    """
     sanitation_classification = additional_args["cb_data"].StrategySpecificCBData['WALI_sanitation_classification_strategy_specific_function']
 
     #Calculate the number of people in each sanitation pathway by merging the data with the sanitation classification
@@ -734,28 +737,33 @@ def cb_wali_sanitation_costs(data : pd.DataFrame,
     
     pivot_index_vars = [i for i in data_new_summarized.columns if i not in ["variable", "value"]]
     data_new_summarized_wide = data_new_summarized.pivot(index = pivot_index_vars, columns="variable", values="value").reset_index()  
-
+    """
 
     #### cb_apply_cost_factors 
     container_to_function = copy.deepcopy(additional_args)
-    container_to_function["data"] = data.merge(right=data_new_summarized_wide, on = ['primary_id', 'region', 'time_period', 'future_id', 'strategy_code'])
+    #container_to_function["data"] = data.merge(right=data_new_summarized_wide, on = ['primary_id', 'region', 'time_period', 'future_id', 'strategy_code'])
+    container_to_function["data"] = data
     container_to_function["strategy_code"] = strategy_code_tx
     container_to_function["comparison_code"] = strategy_code_base
     container_to_function["diff_var"] = diff_var
-    container_to_function["output_variable_name"] = output_vars
-    container_to_function["output_vars"] = output_vars
+    container_to_function["output_variable_name"] = output_variable_name
+    container_to_function["output_vars"] = output_variable_name
     container_to_function["output_mults"] = output_mults
     container_to_function["annual change"] = change_in_multiplier
     container_to_function["list_of_variables_in_dataset"] = list_of_variables + ["pop_unimproved_rural", "pop_improved_rural", "pop_safelymanaged_rural", "pop_unimproved_urban", "pop_improved_urban", "pop_safelymanaged_urban", "pop_omit_rural"]
     
-    container_to_function["cost_factor_data"] = additional_args["cb_data"].StrategySpecificCBData["wali_sanitation_cost_factors"]
+    container_to_function["cost_factor_data"] = additional_args["cb_data"].CostFactorCBFile["wali_sanitation_cost_factors"]
     
+    print("CALCULANDO TECHNICAL COST DE WALI SANITATION")
     results = cb_apply_cost_factors(container_to_function)
 
-    container_to_function["cost_factor_data"] = additional_args["cb_data"].StrategySpecificCBData["wali_benefit_of_sanitation_cost_factors"]
+    print(results)
+    container_to_function["cost_factor_data"] = additional_args["cb_data"].CostFactorCBFile["wali_benefit_of_sanitation_cost_factors"]
 
+    print("CALCULANDO BENEFICIOS DE WALI SANITATION")
     results_benefits = cb_apply_cost_factors(container_to_function)
-
+    print(results_benefits)
+    
     return pd.concat([results, results_benefits], ignore_index = True)
 
 #----------IPPU:CLINKER------------------}
