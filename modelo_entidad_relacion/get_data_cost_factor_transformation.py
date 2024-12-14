@@ -102,9 +102,11 @@ cost_factors_fields.remove('output_variable_name')
 cost_factors_fields = ["output_variable_name"] + cost_factors_fields
 
 
+aggregate_cb_cost_factors = []
+
 for i in cost_factors_list:
     cf = pd.read_csv(i, encoding="latin")
-    cf["cb_function"] = "nd"
+    cf["cb_function"] = "cb_strategy_specific_function"
 
     tabla_cost_factor = i.split("/")[-1]
 
@@ -115,6 +117,12 @@ for i in cost_factors_list:
     else:
         cf = cf[cost_factors_fields + ["cb_function"]]
     
-    cf.to_csv(f"csv2sqlite/{tabla_cost_factor}", index = False)
+    cf["cb_var_group"] = tabla_cost_factor.split(".")[0]
+    aggregate_cb_cost_factors.append(cf)
+
+aggregate_cb_cost_factors = pd.concat(aggregate_cb_cost_factors, ignore_index = True)
+aggregate_cb_cost_factors.loc[aggregate_cb_cost_factors.cb_function=='cb_wali_sanitation_costs', "cb_function"] = "cb_strategy_specific_function"
+
+aggregate_cb_cost_factors.to_csv(f"csv2sqlite/cb_cost_factors.csv", index = False)
 
 

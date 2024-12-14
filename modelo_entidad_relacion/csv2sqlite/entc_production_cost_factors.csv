@@ -1,4 +1,0 @@
-output_variable_name,difference_variable,multiplier,multiplier_unit,annual_change,output_display_name,sum,natural_multiplier_units,display_notes,internal_notes,cb_function
-cb:entc:technical_cost:electricity:capex,nemomod_entc_discounted_capital*,-1000000,,1,Electricity production (CapEx),1,,Costs of electricity and fuels are endogenously calcuated in NemoMod,none,cb_apply_cost_factors
-cb:entc:technical_cost:electricity:opex,nemomod_entc_discounted_operating*,-1000000,,1,Electricity production (OpEx),1,,Costs of electricity and fuels are endogenously calcuated in NemoMod,none,cb_apply_cost_factors
-cb:entc:technical_cost:electricity:transmission,prod_enfu_fuel_electricity_pj,740000,$/PJ,1,Electricity production (Tx),1,$2.70/mwh,"Gorman, Will, Andrew Mills, and Ryan Wiser. Improving estimates of transmission capital costs for utility-scale wind and solar projects to inform renewable energy policy. Energy Policy 135 (2019): 110994.",,cb_apply_cost_factors

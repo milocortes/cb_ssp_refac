@@ -10,4 +10,3 @@ cb:inen:technical_savings:fuel_switch:hi_heat,INEN,TX:INEN:SHIFT_FUEL_HEAT,0.074
 cb:inen:technical_cost:fuel_switch:all,INEN,TX:INEN:SHIFT_FUEL_HEAT,0.4555178,1
 cb:inen:technical_savings:fuel_switch:all,INEN,TX:INEN:SHIFT_FUEL_HEAT,0.4555178,1
 cb:inen:technical_cost:efficiency:X,INEN,TX:INEN:INC_EFFICIENCY_ENERGY,0.35981652,1
-cb:ippu:value:industrial_products:cement,INEN,TX:IPPU:DEC_DEMAND,0.18466569,0
