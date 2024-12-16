@@ -1,0 +1,83 @@
+transformation_code,transformation,transformation_id,sector,description
+TX:BASE,Baseline,0,,"Baseline transformation, which is applied to raw input data"
+TX:AGRC:DEC_CH4_RICE,AGRC: Improve rice management,1,AF,Reduce :math:`\text{CH}_4` emissions from rice production by 45% due to improved management and reduced flooding.
+TX:AGRC:DEC_DEMAND_FOR_UNHEALTHY_CROPS,AGRC: Decrease demand for unhealthy crops,2,AF,
+TX:AGRC:DEC_EXPORTS,AGRC: Decrease Exports,3,AF,Decrease agricultural exports by 50% (relative to final time period)
+TX:AGRC:DEC_LOSSES_SUPPLY_CHAIN,AGRC: Reduce supply chain losses,4,AF,Reduce waste food waste in the agricultural (crop) supply chain (pre-consumer)
+TX:AGRC:INC_CONSERVATION_AGRICULTURE,AGRC: Expand conservation agriculture,5,AF," | Decrease soil organic carbon loss in croplands and leave crop residues (reduce fraction removed and burned)
+ | 
+ | **Croplands**: Increases :math:`F_{MG}` for ``croplands`` to 1.067 (see V4, Chapter 5, Table 5.5 [2019R] for croplands management factors :math:`F_{MG}` under different management regimes--mean of *No-Till*)"
+TX:AGRC:INC_PRODUCTIVITY,AGRC: Improve crop productivity,6,AF,Increase crop yield factors by 20%
+TX:AGRC:INC_RESIDUE_REMOVAL,AGRC: Increase residue removal,7,AF,"Unlike conservation agriculture, remove residues from croplands. However, does not coincide with no till agriciulture."
+TX:LNDU:DEC_DEFORESTATION,LNDU: Stop deforestation,8,AF,Halt deforestation of primary and secondary forests
+TX:LNDU:DEC_DEFORESTATION_AND_INC_SILVOPASTURE,LNDU: Decrease deforestation and increase silvopasture at the same time,9,AF,
+TX:LNDU:DEC_SOC_LOSS_PASTURES,LNDU: Expand sustainable grazing practices,10,AF," | Decrease soil organic carbon loss in grasslands through sustainable grazing practices
+ | 
+ | **Grasslands**: Increase :math:`F_{MG}` for ``grasslands`` to 1.157 (see V4, Chapter 6, Table 6.2 [2019R] for grasslands management factors :math:`F_{MG}` under different management regimes--mean of *Improved Grassland*)"
+TX:LNDU:INC_LAND_REHABILITIATION,LNDU: Rehabilitate degraded land,11,AF,
+TX:LNDU:INC_REFORESTATION,LNDU: Increase Reforestation,12,AF,Increases probability of input land use classes being converted to 
+TX:LNDU:INC_SILVOPASTURE,LNDU: Expand silvopasture,13,AF,"Increase the use of silvopasture; modeled by shifting 30% of pasture (in final time period) to secondary forests over time; livestock carrying capacities increase to meet the change, while pasture fractions of grassland decrease."
+TX:LNDU:PLUR,LNDU: Partial land use reallocation,14,,Set land use reallocation factor to 0.5
+TX:LSMM:INC_CAPTURE_BIOGAS,LSMM: Increase biogas capture at anaerobic decomposition facilities,15,AF,Increase the fraction of biogas that is captured at manure treated at anaerobic livestock manure treatment facilities
+TX:LSMM:INC_MANAGEMENT_CATTLE_PIGS,LSMM: Improve manure management for cattle and pigs,16,AF," | 95% of manure from cattle (dairy and non-dairy) and pigs is treated. Under default conditions, the manure treated is sent to the following pathways:
+ |    37.5% to Anaerobic Digestion
+ |    12.5% to Composting
+ |    25.0% to Daily Spread
+ |    12.5% to Deep Bedding
+ |    12.5% to Solid Storage"
+TX:LSMM:INC_MANAGEMENT_OTHER,LSMM: Improve manure management for other animals,17,AF," | 95% of manure from all other animals is treated. The manure treated is sent to the following pathways:
+ |    37.5.% to Composting
+ |    12.5% to Dry Lot
+ |    25.0% to Daily Spread
+ |    25.0% to Solid Storage"
+TX:LSMM:INC_MANAGEMENT_POULTRY,LSMM: Improve manure management for poultry,18,AF," | 95% of manure from poultry (chickens) and pigs is treated. The manure treated is sent to the following pathways:
+ |    100% to Poultry Management"
+TX:LVST:DEC_ENTERIC_FERMENTATION,LVST: Reduce enteric fermentation,19,AF,Reduce enteric fermentation
+TX:LVST:DEC_EXPORTS,LVST: Decrease exports,20,AF,Decrease exports of livestock and livestock products by 50% (relative to final time period)
+TX:LVST:INC_PRODUCTIVITY,LVST: Increase livestock productivity,21,AF,Increase inferred livestock carrying capacity by 20%
+TX:SOIL:DEC_LIME_APPLIED,SOIL: Improve lime application,22,AF,Decrease lime applied to soils (default 5%)
+TX:SOIL:DEC_N_APPLIED,SOIL: Improve fertilizer application,23,AF,Decrease total nitrogen applied  through more precise fertilizer use (default 5%)
+TX:TRWW:INC_CAPTURE_BIOGAS,TRWW: Increase biogas capture,24,CE,
+TX:TRWW:INC_COMPLIANCE_SEPTIC,TRWW: Increase septic compliance,25,CE,
+TX:WALI:INC_TREATMENT_INDUSTRIAL,WALI: Improved industrial wastewater treatment,26,CE,
+TX:WALI:INC_TREATMENT_RURAL,WALI: Improved rural wastewater treatment,27,CE,
+TX:WALI:INC_TREATMENT_URBAN,WALI: Improved urban wastewater treatment,28,CE,
+TX:WASO:DEC_CONSUMER_FOOD_WASTE,WASO: Consumer food waste reduction,29,CE,Reduce the amount of food waste generated per capita
+TX:WASO:INC_ANAEROBIC_AND_COMPOST,WASO: Increase composting and biogas,30,CE,"Increase the fraction of yard, food, and sludge waste that is treated by anaerobic digesters or compost"
+TX:WASO:INC_CAPTURE_BIOGAS,WASO: Increase biogas capture,31,CE,Increase fraction of biogas captured from landfills and anaerobic digesters
+TX:WASO:INC_ENERGY_FROM_BIOGAS,WASO: Biogas for energy production,32,CE,Increase the fraction of biogas that is collected that is used for energy
+TX:WASO:INC_ENERGY_FROM_INCINERATION,WASO: Incineration for energy production,33,CE,
+TX:WASO:INC_LANDFILLING,WASO: Increase landfilling,34,CE,"Increase fraction of waste that is otherwise untreated (i.e., post recycling, composting, etc.) that is sent to landfills"
+TX:WASO:INC_RECYCLING,WASO: Increase recycling,35,CE,
+TX:CCSQ:INC_CAPTURE,CCSQ: Increase direct air capture,36,EN,Increase Direct Air Capture deployment to 50 MT CO2e by 2050
+TX:ENTC:DEC_LOSSES,ENTC: Reduce transmission losses,37,EN,Decrease transmission losses by upgrading electrical transmission infrastructure.
+TX:ENTC:LEAST_COST_SOLUTION,ENTC: Least cost solution,38,EN,
+TX:ENTC:TARGET_CLEAN_HYDROGEN,ENTC: Clean hydrogen,39,EN,Set a target for clean hydrogen production. 
+TX:ENTC:TARGET_RENEWABLE_ELEC,ENTC: 95% of electricity is generated by renewables in 2050,40,EN,Set a target for renewable electricity. Includes minimum targets for specific renewable energy technologies. 
+TX:FGTV:DEC_LEAKS,FGTV: Minimize leaks,41,EN,
+TX:FGTV:INC_FLARE,FGTV: Maximize flaring,42,EN,
+TX:INEN:INC_EFFICIENCY_ENERGY,INEN: Maximize industrial energy efficiency,43,EN,
+TX:INEN:INC_EFFICIENCY_PRODUCTION,INEN: Maximize industrial production efficiency,44,EN,
+TX:INEN:SHIFT_FUEL_HEAT,INEN: Fuel switch high- and low-temp thermal processes. ,45,EN,Transformations for both (and/or) low and high-heat should be implemented using this transformer. 
+TX:SCOE:DEC_DEMAND_HEAT,SCOE: Reduce end-use demand for heat energy by improving building shell,46,EN,
+TX:SCOE:INC_EFFICIENCY_APPLIANCE,SCOE: Increase appliance efficiency,47,EN,
+TX:SCOE:SHIFT_FUEL_HEAT,"SCOE: Switch to electricity for heat using heat pumps, electric stoves, etc.",48,EN,
+TX:TRDE:DEC_DEMAND,TRDE: Reduce demand for transport,49,EN,
+TX:TRNS:INC_EFFICIENCY_ELECTRIC,TRNS: Increase electric transportation energy efficiency,50,EN,
+TX:TRNS:INC_EFFICIENCY_NON_ELECTRIC,TRNS: Increase non-electric transportation energy efficiency,51,EN,
+TX:TRNS:INC_OCCUPANCY_LIGHT_DUTY,TRNS: Increase occupancy for private vehicles,52,EN,
+TX:TRNS:SHIFT_FUEL_LIGHT_DUTY,TRNS: Electrify light duty road transport,53,EN,
+TX:TRNS:SHIFT_FUEL_MARITIME,TRNS: Fuel switch maritime,54,EN,
+TX:TRNS:SHIFT_FUEL_MEDIUM_DUTY,TRNS: Fuel switch medium duty road transport,55,EN,
+TX:TRNS:SHIFT_FUEL_RAIL,TRNS: Electrify rail,56,EN,
+TX:TRNS:SHIFT_MODE_FREIGHT,TRNS: Mode shift freight,57,EN,
+TX:TRNS:SHIFT_MODE_PASSENGER,TRNS: Mode shift passenger vehicles to others,58,EN,
+TX:TRNS:SHIFT_MODE_REGIONAL,TRNS: Mode shift regional passenger travel,59,EN,
+TX:IPPU:DEC_CLINKER,IPPU: Reduce cement clinker,60,IP,Reduces use of clinker in cement production
+TX:IPPU:DEC_DEMAND,IPPU: Demand management,61,IP,
+TX:IPPU:DEC_HFCS,IPPU: Reduce use of HFCs,62,IP,
+TX:IPPU:DEC_N2O,IPPU: Reduce Nitrous Oxide emissions,63,IP,
+TX:IPPU:DEC_OTHER_FCS,IPPU: Reduce other fluorinated compounds,64,IP,"Includes SF6, NF3, HCFCs, and others"
+TX:IPPU:DEC_PFCS,IPPU: Reduce use of PFCs,65,IP,
+TX:PFLO:INC_HEALTHIER_DIETS,PFLO: Change diets,66,IP,Includes a reduction in the demand for red meat and allows for changes to different crop demands.
+TX:PFLO:INC_IND_CCS,PFLO: Industrial carbon capture and sequestration,67,CROSS,Affects both INEN and IPPU.

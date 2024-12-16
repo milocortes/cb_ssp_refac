@@ -1,0 +1,217 @@
+iso_code3,category_name,region,fao_area_code,world_bank_global_region
+AFG,Afghanistan,afghanistan,2,South Asia
+ALB,Albania,albania,3,Europe & Central Asia
+DZA,Algeria,algeria,4,Middle East & North Africa
+ASM,American Samoa,american_samoa,5,East Asia & Pacific
+AND,Andorra,andorra,6,Europe & Central Asia
+AGO,Angola,angola,7,Sub-Saharan Africa
+ATG,Antigua and Barbuda,antigua_and_barbuda,8,Latin America & Caribbean
+ARG,Argentina,argentina,9,Latin America & Caribbean
+ARM,Armenia,armenia,1,Europe & Central Asia
+ABW,Aruba,aruba,22,Latin America & Caribbean
+AUS,Australia,australia,10,East Asia & Pacific
+AUT,Austria,austria,11,Europe & Central Asia
+AZE,Azerbaijan,azerbaijan,52,Europe & Central Asia
+BHS,Bahamas,bahamas,12,Latin America & Caribbean
+BHR,Bahrain,bahrain,13,Middle East & North Africa
+BGD,Bangladesh,bangladesh,16,South Asia
+BRB,Barbados,barbados,14,Latin America & Caribbean
+BLR,Belarus,belarus,57,Europe & Central Asia
+BEL,Belgium,belgium,255,Europe & Central Asia
+BLZ,Belize,belize,23,Latin America & Caribbean
+BEN,Benin,benin,53,Sub-Saharan Africa
+BMU,Bermuda,bermuda,17,North America
+BTN,Bhutan,bhutan,18,South Asia
+BOL,Bolivia,bolivia,19,Latin America & Caribbean
+BIH,Bosnia and Herzegovina,bosnia_and_herzegovina,80,Europe & Central Asia
+BWA,Botswana,botswana,20,Sub-Saharan Africa
+BRA,Brazil,brazil,21,Latin America & Caribbean
+VGB,British Virgin Islands,british_virgin_islands,239,Latin America & Caribbean
+BRN,Brunei Darussalam,brunei_darussalam,26,East Asia & Pacific
+BGR,Bulgaria,bulgaria,27,Europe & Central Asia
+BFA,Burkina Faso,burkina_faso,233,Sub-Saharan Africa
+BDI,Burundi,burundi,29,Sub-Saharan Africa
+CPV,Cabo Verde,cabo_verde,35,Sub-Saharan Africa
+KHM,Cambodia,cambodia,115,East Asia & Pacific
+CMR,Cameroon,cameroon,32,Sub-Saharan Africa
+CAN,Canada,canada,33,North America
+CYM,Cayman Islands,cayman_islands,36,Latin America & Caribbean
+CAF,Central African Republic,central_african_republic,37,Sub-Saharan Africa
+TCD,Chad,chad,39,Sub-Saharan Africa
+CHI,Channel Islands,channel_islands,259,Europe & Central Asia
+CHL,Chile,chile,40,Latin America & Caribbean
+CHN,China,china,351,East Asia & Pacific
+COL,Colombia,colombia,44,Latin America & Caribbean
+COM,Comoros,comoros,45,Sub-Saharan Africa
+CRI,Costa Rica,costa_rica,48,Latin America & Caribbean
+CIV,Cote d'Ivoire,cote_divoire,107,Sub-Saharan Africa
+HRV,Croatia,croatia,98,Europe & Central Asia
+CUB,Cuba,cuba,49,Latin America & Caribbean
+CUW,Curacao,curacao,279,Latin America & Caribbean
+CYP,Cyprus,cyprus,50,Europe & Central Asia
+CZE,Czechia,czechia,167,Europe & Central Asia
+PRK,Democratic People's Republic of Korea,democratic_peoples_republic_of_korea,116,East Asia & Pacific
+COD,Democratic Republic of the Congo,democratic_republic_of_the_congo,250,Sub-Saharan Africa
+DNK,Denmark,denmark,54,Europe & Central Asia
+DJI,Djibouti,djibouti,72,Middle East & North Africa
+DMA,Dominica,dominica,55,Latin America & Caribbean
+DOM,Dominican Republic,dominican_republic,56,Latin America & Caribbean
+ECU,Ecuador,ecuador,58,Latin America & Caribbean
+EGY,Egypt,egypt,59,Middle East & North Africa
+SLV,El Salvador,el_salvador,60,Latin America & Caribbean
+GNQ,Equatorial Guinea,equatorial_guinea,61,Sub-Saharan Africa
+ERI,Eritrea,eritrea,178,Sub-Saharan Africa
+EST,Estonia,estonia,63,Europe & Central Asia
+SWZ,Eswatini,eswatini,209,Sub-Saharan Africa
+ETH,Ethiopia,ethiopia,238,Sub-Saharan Africa
+FRO,Faroe Islands,faroe_islands,64,Europe & Central Asia
+FJI,Fiji,fiji,66,East Asia & Pacific
+FIN,Finland,finland,67,Europe & Central Asia
+FRA,France,france,68,Europe & Central Asia
+PYF,French Polynesia,french_polynesia,70,East Asia & Pacific
+GAB,Gabon,gabon,74,Sub-Saharan Africa
+GMB,Gambia,gambia,75,Sub-Saharan Africa
+GEO,Georgia,georgia,73,Europe & Central Asia
+DEU,Germany,germany,79,Europe & Central Asia
+GHA,Ghana,ghana,81,Sub-Saharan Africa
+GIB,Gibraltar,gibraltar,82,Europe & Central Asia
+GRC,Greece,greece,84,Europe & Central Asia
+GRL,Greenland,greenland,85,Europe & Central Asia
+GRD,Grenada,grenada,86,Latin America & Caribbean
+GUM,Guam,guam,88,East Asia & Pacific
+GTM,Guatemala,guatemala,89,Latin America & Caribbean
+GIN,Guinea,guinea,90,Sub-Saharan Africa
+GNB,Guinea-Bissau,guinea_bissau,175,Sub-Saharan Africa
+GUY,Guyana,guyana,91,Latin America & Caribbean
+HTI,Haiti,haiti,93,Latin America & Caribbean
+HND,Honduras,honduras,95,Latin America & Caribbean
+HKG,"Hong Kong SAR, China",hong_kong,96,East Asia & Pacific
+HUN,Hungary,hungary,97,Europe & Central Asia
+ISL,Iceland,iceland,99,Europe & Central Asia
+IND,India,india,100,South Asia
+IDN,Indonesia,indonesia,101,East Asia & Pacific
+IRN,Iran,iran,102,Middle East & North Africa
+IRQ,Iraq,iraq,103,Middle East & North Africa
+IRL,Ireland,ireland,104,Europe & Central Asia
+IMN,Isle of Man,isle_of_man,264,Europe & Central Asia
+ISR,Israel,israel,105,Middle East & North Africa
+ITA,Italy,italy,106,Europe & Central Asia
+JAM,Jamaica,jamaica,109,Latin America & Caribbean
+JPN,Japan,japan,110,East Asia & Pacific
+JOR,Jordan,jordan,112,Middle East & North Africa
+KAZ,Kazakhstan,kazakhstan,108,Europe & Central Asia
+KEN,Kenya,kenya,114,Sub-Saharan Africa
+KIR,Kiribati,kiribati,83,East Asia & Pacific
+XKX,Kosovo,kosovo,-999,Europe & Central Asia
+KWT,Kuwait,kuwait,118,Middle East & North Africa
+KGZ,Kyrgyzstan,kyrgyzstan,113,Europe & Central Asia
+LAO,Lao People's Democratic Republic,lao,120,East Asia & Pacific
+LVA,Latvia,latvia,119,Europe & Central Asia
+LBN,Lebanon,lebanon,121,Middle East & North Africa
+LSO,Lesotho,lesotho,122,Sub-Saharan Africa
+LBR,Liberia,liberia,123,Sub-Saharan Africa
+LBY,Libya,libya,124,Middle East & North Africa
+LIE,Liechtenstein,liechtenstein,125,Europe & Central Asia
+LTU,Lithuania,lithuania,126,Europe & Central Asia
+LUX,Luxembourg,luxembourg,256,Europe & Central Asia
+MAC,"Macao SAR, China",macao,128,East Asia & Pacific
+MDG,Madagascar,madagascar,129,Sub-Saharan Africa
+MWI,Malawi,malawi,130,Sub-Saharan Africa
+MYS,Malaysia,malaysia,131,East Asia & Pacific
+MDV,Maldives,maldives,132,South Asia
+MLI,Mali,mali,133,Sub-Saharan Africa
+MLT,Malta,malta,134,Middle East & North Africa
+MHL,Marshall Islands,marshall_islands,127,East Asia & Pacific
+MRT,Mauritania,mauritania,136,Sub-Saharan Africa
+MUS,Mauritius,mauritius,137,Sub-Saharan Africa
+MEX,Mexico,mexico,138,Latin America & Caribbean
+FSM,Micronesia (Federated States of),micronesia,145,East Asia & Pacific
+MCO,Monaco,monaco,140,Europe & Central Asia
+MNG,Mongolia,mongolia,141,East Asia & Pacific
+MNE,Montenegro,montenegro,273,Europe & Central Asia
+MAR,Morocco,morocco,143,Middle East & North Africa
+MOZ,Mozambique,mozambique,144,Sub-Saharan Africa
+MMR,Myanmar,myanmar,28,East Asia & Pacific
+NAM,Namibia,namibia,147,Sub-Saharan Africa
+NRU,Nauru,nauru,148,East Asia & Pacific
+NPL,Nepal,nepal,149,South Asia
+NLD,Netherlands,netherlands,150,Europe & Central Asia
+NCL,New Caledonia,new_caledonia,153,East Asia & Pacific
+NZL,New Zealand,new_zealand,156,East Asia & Pacific
+NIC,Nicaragua,nicaragua,157,Latin America & Caribbean
+NER,Niger,niger,158,Sub-Saharan Africa
+NGA,Nigeria,nigeria,159,Sub-Saharan Africa
+MKD,North Macedonia,north_macedonia,154,Europe & Central Asia
+MNP,Northern Mariana Islands,northern_mariana_islands,163,East Asia & Pacific
+NOR,Norway,norway,162,Europe & Central Asia
+OMN,Oman,oman,221,Middle East & North Africa
+PAK,Pakistan,pakistan,165,South Asia
+PLW,Palau,palau,180,East Asia & Pacific
+PAN,Panama,panama,166,Latin America & Caribbean
+PNG,Papua New Guinea,papua_new_guinea,168,East Asia & Pacific
+PRY,Paraguay,paraguay,169,Latin America & Caribbean
+PER,Peru,peru,170,Latin America & Caribbean
+PHL,Philippines,philippines,171,East Asia & Pacific
+POL,Poland,poland,173,Europe & Central Asia
+PRT,Portugal,portugal,174,Europe & Central Asia
+PRI,Puerto Rico,puerto_rico,177,Latin America & Caribbean
+QAT,Qatar,qatar,179,Middle East & North Africa
+KOR,Republic of Korea,republic_of_korea,117,East Asia & Pacific
+MDA,Republic of Moldova,republic_of_moldova,146,Europe & Central Asia
+COG,Republic of the Congo,republic_of_the_congo,46,Sub-Saharan Africa
+ROU,Romania,romania,183,Europe & Central Asia
+RUS,Russian Federation,russia,185,Europe & Central Asia
+RWA,Rwanda,rwanda,184,Sub-Saharan Africa
+KNA,Saint Kitts and Nevis,saint_kitts_and_nevis,188,Latin America & Caribbean
+LCA,Saint Lucia,saint_lucia,189,Latin America & Caribbean
+VCT,Saint Vincent and the Grenadines,saint_vincent_and_the_grenadines,191,Latin America & Caribbean
+MAF,Saint-Martin (French part),saint_martin,281,Latin America & Caribbean
+WSM,Samoa,samoa,244,East Asia & Pacific
+SMR,San Marino,san_marino,192,Europe & Central Asia
+STP,Sao Tome and Principe,sao_tome_and_principe,193,Sub-Saharan Africa
+SAU,Saudi Arabia,saudi_arabia,194,Middle East & North Africa
+SEN,Senegal,senegal,195,Sub-Saharan Africa
+SRB,Serbia,serbia,272,Europe & Central Asia
+SYC,Seychelles,seychelles,196,Sub-Saharan Africa
+SLE,Sierra Leone,sierra_leone,197,Sub-Saharan Africa
+SGP,Singapore,singapore,200,East Asia & Pacific
+SXM,Sint Maarten (Dutch part),sint_maarten,280,Latin America & Caribbean
+SVK,Slovakia,slovakia,199,Europe & Central Asia
+SVN,Slovenia,slovenia,198,Europe & Central Asia
+SLB,Solomon Islands,solomon_islands,25,East Asia & Pacific
+SOM,Somalia,somalia,201,Sub-Saharan Africa
+ZAF,South Africa,south_africa,202,Sub-Saharan Africa
+SSD,South Sudan,south_sudan,277,Sub-Saharan Africa
+ESP,Spain,spain,203,Europe & Central Asia
+LKA,Sri Lanka,sri_lanka,38,South Asia
+SDN,Sudan,sudan,276,Sub-Saharan Africa
+SUR,Suriname,suriname,207,Latin America & Caribbean
+SWE,Sweden,sweden,210,Europe & Central Asia
+CHE,Switzerland,switzerland,211,Europe & Central Asia
+SYR,Syrian Arab Republic,syrian_arab_republic,212,Middle East & North Africa
+TJK,Tajikistan,tajikistan,208,Europe & Central Asia
+THA,Thailand,thailand,216,East Asia & Pacific
+TLS,Timor-Leste,timor_leste,176,East Asia & Pacific
+TGO,Togo,togo,217,Sub-Saharan Africa
+TON,Tonga,tonga,219,East Asia & Pacific
+TTO,Trinidad and Tobago,trinidad_and_tobago,220,Latin America & Caribbean
+TUN,Tunisia,tunisia,222,Middle East & North Africa
+TUR,Turkey,turkey,223,Europe & Central Asia
+TKM,Turkmenistan,turkmenistan,213,Europe & Central Asia
+TCA,Turks and Caicos Islands,turks_and_caicos_islands,224,Latin America & Caribbean
+TUV,Tuvalu,tuvalu,227,East Asia & Pacific
+UGA,Uganda,uganda,226,Sub-Saharan Africa
+UKR,Ukraine,ukraine,230,Europe & Central Asia
+ARE,United Arab Emirates,united_arab_emirates,225,Middle East & North Africa
+GBR,United Kingdom,united_kingdom,229,Europe & Central Asia
+TZA,United Republic of Tanzania,united_republic_of_tanzania,215,Sub-Saharan Africa
+VIR,United States Virgin Islands,united_states_virgin_islands,240,Latin America & Caribbean
+USA,United States of America,united_states_of_america,231,North America
+URY,Uruguay,uruguay,234,Latin America & Caribbean
+UZB,Uzbekistan,uzbekistan,235,Europe & Central Asia
+VUT,Vanuatu,vanuatu,155,East Asia & Pacific
+VEN,Venezuela,venezuela,236,Latin America & Caribbean
+VNM,Viet Nam,viet_nam,237,East Asia & Pacific
+YEM,Yemen,yemen,249,Middle East & North Africa
+ZMB,Zambia,zambia,251,Sub-Saharan Africa
+ZWE,Zimbabwe,zimbabwe,181,Sub-Saharan Africa
