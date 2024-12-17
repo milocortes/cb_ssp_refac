@@ -1,4 +1,4 @@
-from sqlalchemy import (Column, Integer, Numeric, String, DateTime,ForeignKey, Float, Boolean, BigInteger)
+from sqlalchemy import (Column, Integer, Numeric, String, DateTime,ForeignKey, Float, Boolean)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 
@@ -115,8 +115,8 @@ class CountriesISO(Base):
 class AttDimTimePeriod(Base):
     __tablename__ = "attribute_dim_time_period"
 
-    time_period = Column(BigInteger(), primary_key=True)
-    year = Column(BigInteger())
+    time_period = Column(Float(), primary_key=True)
+    year = Column(Float())
 
 class AttTransformationCode(Base):
     __tablename__ = "attribute_transformation_code"
@@ -143,20 +143,20 @@ class AgrcLVSTProductivityCostGDP(Base):
 class AgrcRiceMGMTTX(Base):
     __tablename__ = "agrc_rice_mgmt_tx"
 
-    time_period = Column(BigInteger(), ForeignKey('attribute_dim_time_period.time_period'), primary_key=True)
+    time_period = Column(Float(), ForeignKey('attribute_dim_time_period.time_period'), primary_key=True)
     ef_agrc_anaerobicdom_rice_kg_ch4_ha = Column(Float())
 
 class ENTCReduceLosses(Base):
     __tablename__ = "entc_reduce_losses_cost_file"
 
     iso_code3 = Column(String(), ForeignKey('countries_by_iso.iso_code3'), primary_key=True)
-    annual_investment_USD = Column(BigInteger())
+    annual_investment_USD = Column(Float())
 
 class IPPUCCSCostFactor(Base):
     __tablename__ = "ippu_ccs_cost_factors"
 
     variable = Column(String(), primary_key = True)
-    multiplier = Column(BigInteger())
+    multiplier = Column(Float())
     multiplier_unit = Column(String())
     annual_change  = Column(Float())
     output_variable_name = Column(String())
@@ -201,7 +201,7 @@ class LVSTTLUConversion(Base):
 class PFLOTransitionNewDiets(Base):
     __tablename__ = "pflo_transition_to_new_diets"
 
-    time_period = Column(BigInteger(), ForeignKey('attribute_dim_time_period.time_period'), primary_key=True)
+    time_period = Column(Float(), ForeignKey('attribute_dim_time_period.time_period'), primary_key=True)
     frac_gnrl_w_original_diet = Column(Float())
 
 class WALISanitationClassificationSP(Base):
