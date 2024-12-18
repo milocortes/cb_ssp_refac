@@ -1,6 +1,8 @@
 from typing import List, Union, Dict, Callable
 from sqlalchemy.orm import Session
 import pandas as pd 
+import polars as pl 
+
 import logging
 
 import numpy as np 
@@ -8,11 +10,14 @@ import re
 
 import os 
 
+from multiprocessing import Pool
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import load_only
 
 from costs_benefits_ssp.utils.utils import build_path,get_tx_prefix
-from costs_benefits_ssp.model.cb_data_model import TXTable,CostFactor,TransformationCost
+from costs_benefits_ssp.model.cb_data_model import TXTable,CostFactor,TransformationCost,StrategyInteraction
 from costs_benefits_ssp.decorators.cb_wrappers import cb_wrapper 
 from costs_benefits_ssp.config.cb_config import * 
 
@@ -22,6 +27,7 @@ from costs_benefits_ssp.model.cb_data_model import (AgrcLVSTProductivityCostGDP,
                                                     IPPUCCSCostFactor,IPPUFgasDesignation,LNDUSoilCarbonFraction,
                                                     LVSTEntericFermentationTX,LVSTTLUConversion,PFLOTransitionNewDiets,
                                                     WALISanitationClassificationSP)
+
 
 class CostBenefits:
     """
@@ -42,14 +48,19 @@ class CostBenefits:
                  ssp_data : pd.DataFrame,
                  att_primary : pd.DataFrame,
                  att_strategy : pd.DataFrame,
+                 strategy_code_base : str,
                  logger: Union[logging.Logger, None] = None
                  ) -> None:
 
-        self.ssp_data = self.marge_attribute_strategy(ssp_data, att_primary, att_strategy)
         self.session = self.initialize_session()
         self.strategy_to_txs : Dict[str, List[str]] = self.get_strategy_to_txs(att_strategy)
         self.att_strategy = att_strategy
-        self.ssp_list_of_vars = list(self.ssp_data) + ["lvst_total_tlu", "pop_unimproved_rural", "pop_improved_rural", "pop_safelymanaged_rural", "pop_unimproved_urban", "pop_improved_urban", "pop_safelymanaged_urban", "pop_omit_rural"]
+        self.strategy_code_base = strategy_code_base
+        self.ssp_data = self.marge_attribute_strategy(ssp_data, att_primary, att_strategy)
+        self.ssp_list_of_vars = list(self.ssp_data) 
+        self.ssp_data = self.add_additional_columns()
+        self.ssp_list_of_vars = list(self.ssp_data) 
+        self.pl_ssp_data = pl.from_pandas(self.ssp_data)
 
 
     ##############################################
@@ -96,6 +107,82 @@ class CostBenefits:
 
         return strategy_to_txs
 
+    def add_additional_columns(
+                self,
+                ) -> pd.DataFrame:
+        
+        # Obtenemos datos de las salidas de ssp
+        data = self.ssp_data.copy()
+
+        #add calculation of total TLUs to data
+        tlu_conversions = pd.read_sql(self.session.query(LVSTTLUConversion).statement, self.session.bind)
+
+
+        pop_livestock = data[SSP_GLOBAL_SIMULATION_IDENTIFIERS + [i for i in self.ssp_list_of_vars if "pop_lvst" in i]]
+        pop_livestock = pop_livestock.melt(id_vars=['primary_id', 'time_period', 'region', 'strategy_code', 'future_id'])
+        pop_livestock = pop_livestock.merge(right=tlu_conversions, on = "variable")
+
+        pop_livestock["total_tlu"] = pop_livestock["value"] * pop_livestock["tlu"]
+
+        pop_livestock_summarized = pop_livestock.groupby(SSP_GLOBAL_SIMULATION_IDENTIFIERS).\
+                                                    agg({"total_tlu" : sum}).\
+                                                    rename(columns={"total_tlu":"lvst_total_tlu"}).\
+                                                    reset_index()
+
+        data = data.merge(right = pop_livestock_summarized, on = SSP_GLOBAL_SIMULATION_IDENTIFIERS)
+
+       
+        #Calculate the number of people in each sanitation pathway by merging the data with the sanitation classification
+        #and with the population data and keepign onyl rows where the population_variable matches the variable.pop
+        #then multiply the fraction by the population
+        #There was concern that we need to account for differences in ww production between urban and rural
+        #But we don't since the pathway fractions for them are mutually exclusive! Hooray!
+
+        sanitation_classification = pd.read_sql(self.session.query(WALISanitationClassificationSP).statement, self.session.bind)
+
+        all_tx_on_ssp_data = list(data.strategy_code.unique())
+        all_tx_on_ssp_data.remove(self.strategy_code_base)
+
+        data_strategy = self.cb_get_data_from_wide_to_long(data, all_tx_on_ssp_data, sanitation_classification["variable"].to_list())
+        data_strategy = data_strategy.merge(right = sanitation_classification, on='variable')
+
+
+        population = self.cb_get_data_from_wide_to_long(data, all_tx_on_ssp_data, ['population_gnrl_rural', 'population_gnrl_urban'])
+        data_strategy = data_strategy.merge(right = population, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
+        data_strategy = data_strategy[data_strategy["population_variable"].isin(data_strategy["variable.pop"])].reset_index()
+        data_strategy["pop_in_pathway"] = data_strategy["value"]*data_strategy["value.pop"]
+
+
+        #Do the same thing with the baseline strategy
+        data_base = self.cb_get_data_from_wide_to_long(data, self.strategy_code_base, sanitation_classification["variable"].to_list())
+        data_base = data_base.merge(right = sanitation_classification, on = 'variable')
+
+    
+        population_base = self.cb_get_data_from_wide_to_long(data, self.strategy_code_base, ['population_gnrl_rural', 'population_gnrl_urban'])
+    
+        data_base = data_base.merge(right = population_base, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
+
+        data_base = data_base[data_base["population_variable"].isin(data_base["variable.pop"])].reset_index(drop = True)
+        data_base["pop_in_pathway"] = data_base["value"]*data_base["value.pop"]
+    
+        data_new = pd.concat([data_strategy, data_base], ignore_index = True)
+    
+        #reduce it by the sanitation category
+
+        gp_vars = ["primary_id", "region", "time_period", "strategy_code", "future_id", "difference_variable"]
+
+        data_new_summarized = data_new.groupby(gp_vars).agg({"pop_in_pathway" : "sum"}).rename(columns = {"pop_in_pathway" : "value"}).reset_index()
+        data_new_summarized = data_new_summarized.rename(columns = {"difference_variable" : "variable"})
+    
+        new_list_of_variables = data_new_summarized["variable"].unique()  
+        
+        pivot_index_vars = [i for i in data_new_summarized.columns if i not in ["variable", "value"]]
+        data_new_summarized_wide = data_new_summarized.pivot(index = pivot_index_vars, columns="variable", values="value").reset_index()  
+        
+        data = data.merge(right=data_new_summarized_wide, on = ['primary_id', 'region', 'time_period', 'future_id', 'strategy_code'])
+
+        return data
+
     ##############################################
 	#------------- UTILITIES   ------------#
 	##############################################
@@ -130,57 +217,6 @@ class CostBenefits:
 
         return data_long  
 
-    ##############################################
-	#------ METODOS	   ------#
-	##############################################
-    
-    def get_cb_var_fields(
-                        self,
-                        cb_var_name : str,
-                        ) -> Union[TransformationCost, CostFactor]:
-
-        # Identificamos qué tipo de factor de costo es
-        tx_query = self.session.query(TXTable).filter(TXTable.output_variable_name == cb_var_name).first() 
-
-        if tx_query.cost_type == "system_cost":
-            
-            return self.session.query(CostFactor).filter(CostFactor.output_variable_name == cb_var_name).first() 
-        
-        elif tx_query.cost_type == "transformation_cost":
-            return self.session.query(TransformationCost).filter(TransformationCost.output_variable_name == cb_var_name).first() 
-        
-
-    def compute_cost_benefit_from_variable(
-                        self,
-                        cb_var_name : str,
-                        strategy_code_tx : Union[str,None] = None,
-                        strategy_code_base : Union[str,None] = None
-                        ) -> pd.DataFrame:
-
-        ## Obteniendo registro de la db
-        cb_orm = self.get_cb_var_fields(cb_var_name)
-
-        ## Agregamos como atributo la estrategia a comparar
-        if strategy_code_tx : cb_orm.strategy_code_tx = strategy_code_tx
-
-        ## Agregamos como atributo la estrategia baseline
-        if strategy_code_base : cb_orm.strategy_code_base = strategy_code_base
-
-        print("---------Costs for: {cb_orm.output_variable_name}.".format(cb_orm=cb_orm))
-
-
-        if cb_orm.tx_table.cost_type == "system_cost":
-            print("La variable se evalúa en System Cost")
-            df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
-            return df_cb_results_var
-        elif cb_orm.tx_table.cost_type == "transformation_cost":
-            print("La variable se evalúa en Transformation Cost")
-            if self.tx_in_strategy(cb_orm.transformation_code, cb_orm.strategy_code_tx):
-                df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
-                return df_cb_results_var
-            else:
-                print("La TX no se encuentra en la estrategia")
-
     def mapping_strategy_specific_functions(
                         self,
                         cb_function : str,
@@ -196,8 +232,6 @@ class CostBenefits:
                 return self.cb_scale_variable_in_strategy(cb_orm)
             case 'cb_fraction_change' : 
                 return self.cb_fraction_change(cb_orm)
-            case 'cb_wali_sanitation_costs': 
-                return self.cb_wali_sanitation_costs(cb_orm)
             case 'cb_entc_reduce_losses' : 
                 return self.cb_entc_reduce_losses(cb_orm)
             case 'cb_ippu_clinker' : 
@@ -220,13 +254,308 @@ class CostBenefits:
                 return self.cb_ippu_inen_ccs(cb_orm)
             case 'cb_manure_management_cost' : 
                 return self.cb_manure_management_cost(cb_orm)
+
+    def get_all_strategies_on_data(
+                        self
+        ) -> List[str]:
+        
+        all_strategies = list(self.ssp_data.strategy_code.unique())
+        all_strategies.remove(self.strategy_code_base)
+
+        return all_strategies
+
+
+    ##############################################
+	#------ METHODS	   ------#
+	##############################################
+    
+    def get_cb_var_fields(
+                        self,
+                        cb_var_name : str,
+                        ) -> Union[TransformationCost, CostFactor]:
+
+        # Identificamos qué tipo de factor de costo es
+        tx_query = self.session.query(TXTable).filter(TXTable.output_variable_name == cb_var_name).first() 
+
+        if tx_query.cost_type == "system_cost":
+            
+            return self.session.query(CostFactor).filter(CostFactor.output_variable_name == cb_var_name).first() 
+        
+        elif tx_query.cost_type == "transformation_cost":
+            return self.session.query(TransformationCost).filter(TransformationCost.output_variable_name == cb_var_name).first() 
+        
+
+    def compute_cost_benefit_from_variable(
+                        self,
+                        cb_var_name : str,
+                        strategy_code_tx : str,
+                        strategy_code_base : Union[str,None] = None,
+                        verbose : bool = True
+                        ) -> pd.DataFrame:
+
+        ## Obteniendo registro de la db
+        cb_orm = self.get_cb_var_fields(cb_var_name)
+
+        ## Agregamos como atributo la estrategia a comparar
+        if strategy_code_tx : cb_orm.strategy_code_tx = strategy_code_tx
+
+        ## Agregamos como atributo la estrategia baseline
+        if strategy_code_base : 
+            cb_orm.strategy_code_base = strategy_code_base
+        else:
+            cb_orm.strategy_code_base = self.strategy_code_base 
+
+        if verbose:
+            print("---------Costs for: {cb_orm.output_variable_name}.".format(cb_orm=cb_orm))
+
+
+        if cb_orm.tx_table.cost_type == "system_cost":
+            if verbose:
+                print("La variable se evalúa en System Cost")
+                #print(f"                       {cb_orm.diff_var}")
+
+            
+            if cb_orm.cb_var_group == 'wali_sanitation_cost_factors' or cb_orm.cb_var_group == 'wali_benefit_of_sanitation_cost_factors':
+                cb_orm.cb_function = 'cb_difference_between_two_strategies'
+            
+            if cb_orm.cb_function=="cb:enfu:fuel_cost:X:X":
+                cb_orm.cb_function = 'cb_difference_between_two_strategies'
+
+            df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
+            
+            return df_cb_results_var
+        elif cb_orm.tx_table.cost_type == "transformation_cost":
+            
+            print("La variable se evalúa en Transformation Cost")
+            
+            if self.tx_in_strategy(cb_orm.transformation_code, cb_orm.strategy_code_tx):
+                df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
+            
+                return df_cb_results_var
+            else:
+                print("La TX no se encuentra en la estrategia")
+                return pd.DataFrame()
+
+    ##############################################
+	#------ SYSTEM COSTS METHODS	   ------#
+	##############################################
+    
+    def compute_system_cost_for_strategy(
+                        self,
+                        strategy_code_tx : str,
+                        strategy_code_base : Union[str,None] = None,
+                        verbose : bool = True
+                        ) -> pd.DataFrame:
+        ## Get cb variables that will be evaluated on system cost
+        system_cost_cb_vars = self.session.query(TXTable).filter(TXTable.cost_type == "system_cost").options(load_only(TXTable.output_variable_name)).all()
+
+        accumulate_system_costs = []
+
+        for cb_var in system_cost_cb_vars:
+            accumulate_system_costs.append(
+                self.compute_cost_benefit_from_variable(cb_var.output_variable_name, strategy_code_tx, verbose = verbose)
+           )
+
+        return pd.concat(accumulate_system_costs, ignore_index = True)
+    
+    def compute_system_cost_for_all_strategies(
+                        self,
+                        strategy_code_base : Union[str,None] = None,
+                        verbose : bool = True
+                        ) -> pd.DataFrame:
+        
+        all_strategies = self.get_all_strategies_on_data()
+        accumulate_system_costs_all_strat = []
+        total_strategies = len(all_strategies)
+
+        for id_strat, strategy in enumerate(all_strategies):
+            print(f"\n************************************\n*Strategy : {strategy} ({id_strat}/{total_strategies})\n************************************\n")
+            accumulate_system_costs_all_strat.append(
+                self.compute_system_cost_for_strategy(strategy,verbose = verbose)
+            )
+        
+        return pd.concat(accumulate_system_costs_all_strat, ignore_index = True)
+
+    ##############################################
+	#------ TECHNICAL COSTS METHODS	   ------#
+	##############################################
+
+    def compute_technical_cost_for_strategy(
+                        self,
+                        strategy_code_tx : str,
+                        strategy_code_base : Union[str,None] = None,
+                        verbose : bool = True
+                        ) -> pd.DataFrame:
+        ## Get cb variables that will be evaluated on system cost
+        technical_cost_cb = self.session.query(TransformationCost).all()
+        
+        ## Get mapping between cb_var by technical cost and transformation 
+        cb_tech_cost_mapping_to_tx = pd.read_sql(self.session.query(TransformationCost).statement, self.session.bind) 
+        cb_tech_cost_mapping_to_tx = dict(cb_tech_cost_mapping_to_tx[["output_variable_name", "transformation_code"]].to_records(index = False))
+        
+        ## Get all transformations in technical cost
+        all_tx_in_technical_cost = [i.transformation_code for i in technical_cost_cb]
+
+        ## Get transformation inside on strategy_code_tx
+        tx_technical_cost_in_strategy = list(set(all_tx_in_technical_cost).intersection(self.strategy_to_txs[strategy_code_tx]))
+
+        if tx_technical_cost_in_strategy:
+
+            accumulate_technical_costs = []
+
+            for cb_var,tx_associated in cb_tech_cost_mapping_to_tx.items():
+                if tx_associated in tx_technical_cost_in_strategy:
+                    accumulate_technical_costs.append(
+                        self.compute_cost_benefit_from_variable(cb_var, strategy_code_tx, verbose = verbose)
+                )
+
+            return pd.concat(accumulate_technical_costs, ignore_index = True)
+        else:
+            print(f"The Strategy {strategy_code_tx} hasn't technical costs")
+            return pd.DataFrame()
+
+    def compute_technical_cost_for_all_strategies(
+                        self,
+                        strategy_code_base : Union[str,None] = None,
+                        verbose : bool = True
+                        ) -> pd.DataFrame:
+        
+        all_strategies = self.get_all_strategies_on_data()
+        accumulate_technical_costs_all_strat = []
+        total_strategies = len(all_strategies)
+
+        for id_strat, strategy in enumerate(all_strategies):
+            print(f"\n************************************\n*Strategy : {strategy} ({id_strat}/{total_strategies})\n************************************\n")
+            accumulate_technical_costs_all_strat.append(
+                self.compute_technical_cost_for_strategy(strategy,verbose = verbose)
+            )
+        
+        return pd.concat(accumulate_technical_costs_all_strat, ignore_index = True)
+
+    ##############################################
+	#----- METHOD FOR COMPUTING INTERACTIONS ----#
+	##############################################
+
+    def cb_process_interactions(
+                        self,
+                        res : pd.DataFrame,
+        ) -> pd.DataFrame:
+
+        # Get interaction table
+        interactions = pd.read_sql(self.session.query(StrategyInteraction).statement, self.session.bind)
+
+        #get the list of interactions
+        list_of_interactions = interactions["interaction_name"].unique()
+
+        #get the strategies in the results file
+        strategies = res["strategy_code"].unique()
+
+
+        for strategy_code in strategies:
+            # Get transformations in the strategy definition
+            tx_in_strategy = self.strategy_to_txs[strategy_code]
+            
+            #for each interaction
+            for interaction in list_of_interactions:
+                #transformations that interact
+                tx_interacting = interactions.query(f"interaction_name=='{interaction}'")
+                tx_in_interaction = tx_interacting["transformation_code"].unique()
+                tx_in_both = list(set(tx_in_interaction).intersection(tx_in_strategy))
+
+                #only count the transfomrations actully in the strategy
+                tx_interacting = tx_interacting[tx_interacting["transformation_code"].isin(tx_in_both)]
+
+                if SSP_PRINT_STRATEGIES: 
+                    print(f"Resolving Interactions in {interaction} : {', '.join(tx_interacting['transformation_code'].to_list())} ")
+
+                if tx_interacting.shape[0] == 0:
+                    if SSP_PRINT_STRATEGIES:
+                        print(f"No interactions, skipping... {strategy_code}")
+                        continue
+
+                # Rescale
+                tx_rescale = tx_interacting.groupby("transformation_code")\
+                                            .agg({"relative_effect" : "mean"})\
+                                            .reset_index()\
+                                            .rename(columns = {"relative_effect":"original_scalar"})
                 
+                new_sum = tx_rescale["original_scalar"].sum()
+                tx_rescale["newscalar"] = tx_rescale["original_scalar"]/new_sum
+
+                #update the original scalars in the intracting tx
+                tx_interacting = tx_interacting.merge(right=tx_rescale, on = "transformation_code")
+                tx_interacting["strategy_code"] = strategy_code
+
+                #apply these scalars to the data
+                res_subset = res[(res["strategy_code"] == strategy_code) & (res["variable"].isin(tx_interacting["variable"]))]
+                res_subset = res_subset.merge(right=tx_interacting, on = ["strategy_code", "variable"], suffixes=['', '.int'])
+                res_subset.loc[res_subset["scale_variable"]==0.0, "newscalar"] = 1.0
+
+                res_subset["value"] = res_subset["value"] * res_subset["newscalar"]
+                res_subset["difference_value"] = res_subset["difference_value"] * res_subset["newscalar"]
+
+                #make a replacement dataset
+                res_for_replacement = res_subset[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+
+                #remove the other rows from the dataset
+                res = res[~((res["strategy_code"] == strategy_code) & (res["variable"].isin(tx_interacting["variable"])))]
+
+                res = pd.concat([res, res_for_replacement], ignore_index = True)
+
+        return res
+
+    ##############################################
+	#---------- SHIFT COSTS METHOD  -------------#
+	##############################################
+    
+    def cb_shift_costs(
+                        self,
+                        res : pd.DataFrame,
+        ) -> pd.DataFrame:
+
+        #SHIFT any stray costs incurred from 2015 to 2025 to 2025 and 2035
+        res_pre2025 = res.query(f"time_period<{SSP_GLOBAL_TIME_PERIOD_TX_START}")#get the subset of early costs
+        res_pre2025["variable"] = res_pre2025["variable"] + "_shifted" + (res_pre2025["time_period"]+SSP_GLOBAL_TIME_PERIOD_0).astype(str)#create a new variable so they can be recognized as shifted costs
+        res_pre2025["time_period"] = res_pre2025["time_period"]+SSP_GLOBAL_TIME_PERIOD_TX_START #shift the time period
+
+        results_all_pp_shift = pd.concat([res, res_pre2025], ignore_index = True) #paste the results
+
+        results_all_pp_shift.loc[results_all_pp_shift["time_period"]<SSP_GLOBAL_TIME_PERIOD_TX_START,'value'] = 0 #set pre-2025 costs to 0
+
+        return results_all_pp_shift
+
+    ##############################################
+	#-- DB EXPORT AND LOAD METHODS   ------------#
+	##############################################
+
+    def export_db_to_excel(
+                        self,
+                        PATH : str = None
+        ) -> None:
+
+        list_of_tables = [TXTable,CostFactor,TransformationCost,StrategyInteraction,AgrcLVSTProductivityCostGDP,AgrcRiceMGMTTX,ENTCReduceLosses,
+                                                    IPPUCCSCostFactor,IPPUFgasDesignation,LNDUSoilCarbonFraction,
+                                                    LVSTEntericFermentationTX,LVSTTLUConversion,PFLOTransitionNewDiets,
+                                                    WALISanitationClassificationSP,CountriesISO,AttDimTimePeriod,AttTransformationCode]
+
+
+        # create a excel writer object
+        with pd.ExcelWriter("cb_config_params.xlsx") as writer:
+
+            for tb in list_of_tables:
+                print(tb.__tablename__)
+                df = pd.read_sql(self.session.query(tb).statement, self.session.bind) 
+                # use to_excel function and specify the sheet_name and index 
+                # to store the dataframe in specified sheet
+                df.to_excel(writer, sheet_name=tb.__tablename__[:30], index=False)
+
+
     #+++++++++++++++++++++++++++++++++++++++++++++    
     ##############################################
-	#------ DECORATED METHODS	   ------#
-	##############################################
+	#------ DECORATED METHODS	  ---------------#
+    #------ STRATEGY SPECIFIC FUNCTIONS ---------#
+    ##############################################
     #+++++++++++++++++++++++++++++++++++++++++++++
-
 
 
     # ---------------------------------------------
@@ -238,8 +567,6 @@ class CostBenefits:
                         self,
                         cb_orm : Union[CostFactor,TransformationCost]
                         ) -> pd.DataFrame:
-
-        print(f"                       {cb_orm.diff_var}")
         
         # Obtenemos datos de las salidas de ssp
         data = self.ssp_data.copy()
@@ -785,22 +1112,6 @@ class CostBenefits:
         # Obtenemos datos de las salidas de ssp
         data = self.ssp_data.copy()
 
-        tlu_conversions = pd.read_sql(self.session.query(LVSTTLUConversion).statement, self.session.bind)
-
-
-        pop_livestock = data[SSP_GLOBAL_SIMULATION_IDENTIFIERS + [i for i in self.ssp_list_of_vars if "pop_lvst" in i]]
-        pop_livestock = pop_livestock.melt(id_vars=['primary_id', 'time_period', 'region', 'strategy_code', 'future_id'])
-        pop_livestock = pop_livestock.merge(right=tlu_conversions, on = "variable")
-
-        pop_livestock["total_tlu"] = pop_livestock["value"] * pop_livestock["tlu"]
-
-        pop_livestock_summarized = pop_livestock.groupby(SSP_GLOBAL_SIMULATION_IDENTIFIERS).\
-                                                    agg({"total_tlu" : sum}).\
-                                                    rename(columns={"total_tlu":"lvst_total_tlu"}).\
-                                                    reset_index()
-
-        data = data.merge(right = pop_livestock_summarized, on = SSP_GLOBAL_SIMULATION_IDENTIFIERS)
-
         #time_period = range(SSP_GLOBAL_TIME_PERIODS)
         implementation = [0]*11 + list(np.linspace(0, 0.95, SSP_GLOBAL_TIME_PERIODS - 11))
 
@@ -817,75 +1128,3 @@ class CostBenefits:
         return tlus.dropna()
 
 
-    #----------WALI:SANITATION COSTS AND BENEFITS------------------
-    @cb_wrapper
-    def cb_wali_sanitation_costs(
-                        self,
-                        cb_orm : Union[CostFactor,TransformationCost]
-                        ) -> pd.DataFrame:
-        
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
-        
-        sanitation_classification = pd.read_sql(self.session.query(WALISanitationClassificationSP).statement, self.session.bind)
-        
-
-        #Calculate the number of people in each sanitation pathway by merging the data with the sanitation classification
-        #and with the population data and keepign onyl rows where the population_variable matches the variable.pop
-        #then multiply the fraction by the population
-        #There was concern that we need to account for differences in ww production between urban and rural
-        #But we don't since the pathway fractions for them are mutually exclusive! Hooray!
-
-        data_strategy = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, sanitation_classification["variable"].to_list())
-        data_strategy = data_strategy.merge(right = sanitation_classification, on='variable')
-
-
-        population = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, ['population_gnrl_rural', 'population_gnrl_urban'])
-        data_strategy = data_strategy.merge(right = population, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
-        data_strategy = data_strategy[data_strategy["population_variable"].isin(data_strategy["variable.pop"])].reset_index()
-        data_strategy["pop_in_pathway"] = data_strategy["value"]*data_strategy["value.pop"]
-
-
-        #Do the same thing with the baseline strategy
-        data_base = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, sanitation_classification["variable"].to_list())
-        data_base = data_base.merge(right = sanitation_classification, on = 'variable')
-
-    
-        population_base = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, ['population_gnrl_rural', 'population_gnrl_urban'])
-    
-        data_base = data_base.merge(right = population_base, on = ['region', 'time_period', 'future_id'], suffixes = ["", ".pop"])
-
-        data_base = data_base[data_base["population_variable"].isin(data_base["variable.pop"])].reset_index(drop = True)
-        data_base["pop_in_pathway"] = data_base["value"]*data_base["value.pop"]
-    
-        data_new = pd.concat([data_strategy, data_base], ignore_index = True)
-    
-        #reduce it by the sanitation category
-
-        gp_vars = ["primary_id", "region", "time_period", "strategy_code", "future_id", "difference_variable"]
-
-        data_new_summarized = data_new.groupby(gp_vars).agg({"pop_in_pathway" : "sum"}).rename(columns = {"pop_in_pathway" : "value"}).reset_index()
-        data_new_summarized = data_new_summarized.rename(columns = {"difference_variable" : "variable"})
-    
-        new_list_of_variables = data_new_summarized["variable"].unique()  
-        
-        pivot_index_vars = [i for i in data_new_summarized.columns if i not in ["variable", "value"]]
-        data_new_summarized_wide = data_new_summarized.pivot(index = pivot_index_vars, columns="variable", values="value").reset_index()  
-        
-        data = data.merge(right=data_new_summarized_wide, on = ['primary_id', 'region', 'time_period', 'future_id', 'strategy_code'])
-
-        cost_factor_data = pd.read_sql(self.session.query(WALISanitationClassificationSP).statement, self.session.bind)
-        
-        container_to_function["cost_factor_data"] = additional_args["cb_data"].CostFactorCBFile["wali_sanitation_cost_factors"]
-        
-        print("CALCULANDO TECHNICAL COST DE WALI SANITATION")
-        results = cb_apply_cost_factors(container_to_function)
-
-        print(results)
-        container_to_function["cost_factor_data"] = additional_args["cb_data"].CostFactorCBFile["wali_benefit_of_sanitation_cost_factors"]
-
-        print("CALCULANDO BENEFICIOS DE WALI SANITATION")
-        results_benefits = cb_apply_cost_factors(container_to_function)
-        print(results_benefits)
-        
-        return pd.concat([results, results_benefits], ignore_index = True)
