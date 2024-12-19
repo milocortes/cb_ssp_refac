@@ -11,7 +11,7 @@ session = Session()
 from datetime import datetime
 
 from sqlalchemy import (Table, Column, Integer, Numeric, String, DateTime,
-                        ForeignKey, Float, Boolean, BigInteger)
+                        ForeignKey, Float, Boolean)
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
@@ -43,7 +43,7 @@ class TransformationCost(Base):
     output_variable_name = Column(String(), ForeignKey('tx_table.output_variable_name'), primary_key=True)
     transformation_code = Column(String(), ForeignKey('attribute_transformation_code.transformation_code'))
     include = Column(Boolean())
-    include_variant = Column(Integer())
+    include_variant = Column(Float())
     test_id_variant_suffix = Column(String())
     comparison_id_variant = Column(String())
     cb_function = Column(String())
@@ -52,7 +52,7 @@ class TransformationCost(Base):
     multiplier_unit = Column(String())
     annual_change = Column(Float())
     arg1 = Column(String())
-    arg2  = Column(Integer())
+    arg2  = Column(Float())
     sum = Column(Boolean())
     natural_multiplier_units = Column(String())
 
@@ -160,7 +160,7 @@ class IPPUCCSCostFactor(Base):
     annual_change  = Column(Float())
     output_variable_name = Column(String())
     output_display_name = Column(String())
-    sum = Column(Integer())
+    sum = Column(Float())
     natural_multiplier_units = Column(String())
     display_notes = Column(String())
     internal_notes = Column(String())

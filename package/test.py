@@ -72,6 +72,8 @@ cb.compute_cost_benefit_from_variable('cb:wali:technical_cost:sanitation:safeman
 cb.compute_cost_benefit_from_variable('cb:wali:technical_cost:sanitation:omit_rural', 'TORNADO:WALI:INC_TREATMENT_URBAN')
 cb.compute_cost_benefit_from_variable('cb:wali:human_health:safe_sanitation:X', 'TORNADO:WALI:INC_TREATMENT_URBAN')
 
+cb.get_cb_var_fields("cb:trns:air_pollution:X:diesel")
+cb.get_cb_var_fields("cb:lvst:lvst_value:livestock_produced:chickens")
 
 ###########################
 

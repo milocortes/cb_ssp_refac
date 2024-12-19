@@ -34,7 +34,7 @@ class TransformationCost(Base):
     output_variable_name = Column(String(), ForeignKey('tx_table.output_variable_name'), primary_key=True)
     transformation_code = Column(String(), ForeignKey('attribute_transformation_code.transformation_code'))
     include = Column(Boolean())
-    include_variant = Column(Integer())
+    include_variant = Column(Float())
     test_id_variant_suffix = Column(String())
     comparison_id_variant = Column(String())
     cb_function = Column(String())
@@ -43,7 +43,7 @@ class TransformationCost(Base):
     multiplier_unit = Column(String())
     annual_change = Column(Float())
     arg1 = Column(String())
-    arg2  = Column(Integer())
+    arg2  = Column(Float())
     sum = Column(Boolean())
     natural_multiplier_units = Column(String())
 
@@ -93,8 +93,18 @@ class CostFactor(Base):
     tx_table =  relationship("TXTable", backref=backref('cost_factors', order_by=output_variable_name))
 
     def __repr__(self):
-        return "CostFactor(output_variable_name={self.output_variable_name}, " \
-                      "difference_variable={self.difference_variable})".format(self=self)
+        return "CostFactor(\n\t\toutput_variable_name = {self.output_variable_name}," \
+                      "\n\t\tdifference_variable = {self.difference_variable},"\
+                      "\n\t\tmultiplier = {self.multiplier},"\
+                      "\n\t\tmultiplier_unit = {self.multiplier_unit},"\
+                      "\n\t\tannual_change = {self.annual_change},"\
+                      "\n\t\toutput_display_name = {self.output_display_name},"\
+                      "\n\t\tsum = {self.sum},"\
+                      "\n\t\tnatural_multiplier_units = {self.natural_multiplier_units},"\
+                      "\n\t\tdisplay_notes = {self.display_notes},"\
+                      "\n\t\tinternal_notes = {self.internal_notes},"\
+                      "\n\t\tcb_function = {self.cb_function},"\
+                      "\n\t\tcb_var_group = {self.cb_var_group}) ".format(self=self)
 
 """
 ++++++++++++++++++++++++++++++++
@@ -161,7 +171,7 @@ class IPPUCCSCostFactor(Base):
     annual_change  = Column(Float())
     output_variable_name = Column(String())
     output_display_name = Column(String())
-    sum = Column(Integer())
+    sum = Column(Float())
     natural_multiplier_units = Column(String())
     display_notes = Column(String())
     internal_notes = Column(String())

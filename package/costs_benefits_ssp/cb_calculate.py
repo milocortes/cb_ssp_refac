@@ -1,7 +1,7 @@
 from typing import List, Union, Dict, Callable
 from sqlalchemy.orm import Session
 import pandas as pd 
-import polars as pl 
+#import polars as pl 
 
 import logging
 
@@ -60,7 +60,7 @@ class CostBenefits:
         self.ssp_list_of_vars = list(self.ssp_data) 
         self.ssp_data = self.add_additional_columns()
         self.ssp_list_of_vars = list(self.ssp_data) 
-        self.pl_ssp_data = pl.from_pandas(self.ssp_data)
+        #self.pl_ssp_data = pl.from_pandas(self.ssp_data)
 
 
     ##############################################
@@ -290,7 +290,8 @@ class CostBenefits:
                         cb_var_name : str,
                         strategy_code_tx : str,
                         strategy_code_base : Union[str,None] = None,
-                        verbose : bool = True
+                        verbose : bool = True,
+                        dec_original_multiplier_value : float = 1.0
                         ) -> pd.DataFrame:
 
         ## Obteniendo registro de la db
@@ -321,6 +322,10 @@ class CostBenefits:
             if cb_orm.cb_function=="cb:enfu:fuel_cost:X:X":
                 cb_orm.cb_function = 'cb_difference_between_two_strategies'
 
+            # Actualizamos multiplicador
+            cb_orm.multiplier *= dec_original_multiplier_value
+
+            # Aplicamos la función de costo
             df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
             
             return df_cb_results_var
@@ -329,6 +334,10 @@ class CostBenefits:
             print("La variable se evalúa en Transformation Cost")
             
             if self.tx_in_strategy(cb_orm.transformation_code, cb_orm.strategy_code_tx):
+                # Actualizamos multiplicador
+                cb_orm.multiplier *= dec_original_multiplier_value
+
+                # Aplicamos la función de costo
                 df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
             
                 return df_cb_results_var
