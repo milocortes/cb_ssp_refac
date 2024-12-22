@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 import pandas as pd 
 #import polars as pl 
 
+import warnings
+
 import logging
 
 import numpy as np 
@@ -15,6 +17,7 @@ from multiprocessing import Pool
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import load_only
+from sqlalchemy.orm import declarative_base
 
 from costs_benefits_ssp.utils.utils import build_path,get_tx_prefix
 from costs_benefits_ssp.model.cb_data_model import TXTable,CostFactor,TransformationCost,StrategyInteraction
@@ -28,6 +31,7 @@ from costs_benefits_ssp.model.cb_data_model import (AgrcLVSTProductivityCostGDP,
                                                     LVSTEntericFermentationTX,LVSTTLUConversion,PFLOTransitionNewDiets,
                                                     WALISanitationClassificationSP)
 
+from costs_benefits_ssp.model.cb_update_data_model import update_db_schema
 
 class CostBenefits:
     """
@@ -552,11 +556,70 @@ class CostBenefits:
         with pd.ExcelWriter("cb_config_params.xlsx") as writer:
 
             for tb in list_of_tables:
-                print(tb.__tablename__)
+                #print(tb.__tablename__)
                 df = pd.read_sql(self.session.query(tb).statement, self.session.bind) 
                 # use to_excel function and specify the sheet_name and index 
                 # to store the dataframe in specified sheet
-                df.to_excel(writer, sheet_name=tb.__tablename__[:30], index=False)
+                df.to_excel(writer, sheet_name=tb.__tablename__, index=False)
+
+
+    def load_cb_parameters_(
+        self, 
+        FP : str
+        ) -> None:
+        
+        # Test if file exists
+        if os.path.isfile(FP):
+            print("Cargamos configuración de archivo excel")
+
+            ## Diccionario que mapea los nombres de las pestañas con su respectiva tabla en la base de datos
+            cb_model_mapping = {"tx_table" : TXTable,
+                                "transformation_costs" : TransformationCost,
+                                "strategy_interactions" : StrategyInteraction,
+                                "cost_factors" : CostFactor,
+                                "countries_by_iso" : CountriesISO,
+                                "attribute_dim_time_period" : AttDimTimePeriod,
+                                "attribute_transformation_code" : AttTransformationCode,
+                                "agrc_lvst_productivity_costgdp" : AgrcLVSTProductivityCostGDP,
+                                "agrc_rice_mgmt_tx" : AgrcRiceMGMTTX,
+                                "entc_reduce_losses_cost_file" : ENTCReduceLosses,
+                                "ippu_ccs_cost_factors" : IPPUCCSCostFactor,
+                                "ippu_fgas_designations" : IPPUFgasDesignation,
+                                "LNDU_soil_carbon_fractions" : LNDUSoilCarbonFraction,
+                                "LVST_enteric_fermentation_tx" : LVSTEntericFermentationTX,
+                                "lvst_tlu_conversions" : LVSTTLUConversion,
+                                "pflo_transition_to_new_diets" : PFLOTransitionNewDiets,
+                                "wali_sanitation_classification" : WALISanitationClassificationSP}
+
+            ## Iniciamos una nueva sesión en el objeto 
+            engine = create_engine('sqlite:///:memory:')
+
+            Session = sessionmaker(bind=engine)
+
+            self.session = Session()
+
+            Base = declarative_base()
+
+            update_db_schema(Base)
+
+            Base.metadata.create_all(engine)
+            
+            ## Poblamod cada tabla con los datos del archivo excel
+
+            for sheet_name,tb_model in cb_model_mapping.items():
+                df_tb = pd.read_excel(FP, engine = "openpyxl", sheet_name = sheet_name)
+                data_fields = df_tb.columns
+
+                self.session.bulk_save_objects(
+                    [tb_model(**{tb_fields : record_fields for tb_fields,record_fields in zip(data_fields, record)}) for record in df_tb.to_records(index = False) ]
+                )
+
+            print("Se actualizó la base de datos")
+
+
+        else:
+            warnings.warn("El archivo de factores de CB no fue encontrado\nSe usará la configuración default")
+
 
 
     #+++++++++++++++++++++++++++++++++++++++++++++    

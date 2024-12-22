@@ -133,7 +133,7 @@ class AttTransformationCode(Base):
 
 
 class AgrcLVSTProductivityCostGDP(Base):
-    __tablename__ = "agrc_lvst_productivity_cost_gdp"
+    __tablename__ = "agrc_lvst_productivity_costgdp"
 
     iso_code3 = Column(String(), ForeignKey('countries_by_iso.iso_code3'), primary_key=True)
     cost_of_productivity_improvements_pct_gdp = Column(Float())
@@ -204,7 +204,7 @@ class PFLOTransitionNewDiets(Base):
     frac_gnrl_w_original_diet = Column(Float())
 
 class WALISanitationClassificationSP(Base):
-    __tablename__ = "wali_sanitation_classification_strategy_specific_function"
+    __tablename__ = "wali_sanitation_classification"
 
 
     variable = Column(String(), primary_key = True)
