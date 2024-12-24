@@ -1,10 +1,25 @@
 ## Cargamos paqueterías
 from costs_benefits_ssp.cb_calculate import CostBenefits
+import numpy as np
 import pandas as pd 
 import os 
 
-## Definimos directorio donde están los datos
-SSP_RESULTS_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/remote/cb_ssp_refac/package"
+##---- Definimos directorios
+### Directorio de salidas de SSP
+SSP_RESULTS_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/ssp_results"
+
+### Directorio de configuración de tablas de costos
+CB_DEFAULT_DEFINITION_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/cb_definition_data"
+
+### Directorio de salidas del módulo de costos y beneficios
+OUTPUT_CB_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/output_cb_mod"
+
+### Directorio de datos requeridos paragenerar el archivo tornado_plot_data_QA_QC.csv
+INPUT_TORNADO_QA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/input_data_tornado_QA"
+
+### Directorio de salidas del archivo tornado_plot_data_QA_QC.csv
+OUTPUT_TORNADO_QA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/output_tornado_QA"
+
 
 ## Cargamos los datos
 ssp_data = pd.read_csv(os.path.join(SSP_RESULTS_PATH, "iran.zip"))
@@ -15,21 +30,46 @@ strategy_code_base = "BASE"
 ## Instanciamos un objeto de la clase CostBenefits 
 cb = CostBenefits(ssp_data, att_primary, att_strategy, strategy_code_base)
 
-## Exportamos las tablas de costos a un archivo excel. Cada pestaña representa una tabla en la base de datos del programa
-## de costos y beneficios.
-## El archivo excel será guardado con el nombre cb_config_params.xlsx en la ruta donde actualmente está la sesión de python
-cb.export_db_to_excel()
+## El método export_db_to_excel guarda la configuración inicial de las tablas de costos a un archivo excel. 
+### Cada pestaña representa una tabla en la base de datos del programa de costos y beneficios.
+CB_DEFAULT_DEFINITION_FILE_PATH = os.path.join(CB_DEFAULT_DEFINITION_PATH, "cb_config_params.xlsx")
 
-## Una vez actualizado el archivo excel, podemos cargarlo y para actualizar la base de datos del programa
-cb.load_cb_parameters("/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/remote/cb_ssp_refac/package/cb_config_params.xlsx")
+cb.export_db_to_excel(CB_DEFAULT_DEFINITION_FILE_PATH)
 
-## Con la base de datos de los factores de costos actualizada, calculamos:
+## Una vez actualizado el archivo excel, podemos cargarlo y actualizar la base de datos del programa
+cb.load_cb_parameters(CB_DEFAULT_DEFINITION_FILE_PATH)
 
-# System Costs
+
+#------ System Costs
 results_system = cb.compute_system_cost_for_all_strategies()
 
-# Technical Costs
+# Podemos calcular System Cost a partir de un DataFrame que contenga los campos de la tabla cost_factors
+# El método get_cost_factors regresa un DataFrame la configuración por default de la tabla cost_factors
+new_cost_factor = cb.get_cost_factors()
+
+# Podemos modifical el dataframe y pasarlo como argumento al método compute_system_cost_for_all_strategies
+# el cual actualizará la tabla cost_factors en la base de datos y realizará la ejecución con la tabla actualizada
+
+# Modificaremos todos los mulplicadores para que sean 10% el valor por default
+new_cost_factor["multiplier"] *= 0.1
+
+# Calculamos System Cost con los multiplicadores modificados
+results_system = cb.compute_system_cost_for_all_strategies(new_system_cost_definition = new_cost_factor)
+
+
+#------ Technical Costs
 results_tx = cb.compute_technical_cost_for_all_strategies()
+
+# Al igual que para System Cost, podemos calcular los Technical Cost a partir de un DataFrame que contenga los campos de la tabla transformation_costs
+# El método get_technical_costs regresa un DataFrame la configuración por default de la tabla transformation_costs
+new_technical_cost = cb.get_technical_costs()
+
+# Modificaremos todos los mulplicadores para que sean 10% el valor por default
+new_technical_cost["multiplier"] *= 0.1
+
+# Podemos modifical el dataframe y pasarlo como argumento al método compute_system_cost_for_all_strategies
+# el cual actualizará la tabla cost_factors en la base de datos y realizará la ejecución con la tabla actualizada
+results_tx = cb.compute_technical_cost_for_all_strategies(new_technical_cost_definition = new_technical_cost)
 
 # Combina resultados
 results_all = pd.concat([results_system, results_tx], ignore_index = True)
@@ -42,8 +82,14 @@ results_all_pp = cb.cb_process_interactions(results_all)
 results_all_pp_shifted = cb.cb_shift_costs(results_all_pp)
 
 # Guardamos resultados
-results_all_pp_shifted.to_csv("/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/remote/cb_ssp_refac/package/cost_benefit_results_tornado.csv", index = False)
+OUTPUT_CB_FILE_PATH = os.path.join(OUTPUT_CB_PATH, "cost_benefit_results_tornado.csv")
 
+results_all_pp_shifted.to_csv(OUTPUT_CB_FILE_PATH, index = False)
+
+# Guardamos la configuración de las tablas de costos actualizadas en un archivo excel
+CB_UPDATED_DEFINITION_FILE_PATH = os.path.join(CB_DEFAULT_DEFINITION_PATH, "cb_config_params_updated.xlsx")
+
+cb.export_db_to_excel(CB_UPDATED_DEFINITION_FILE_PATH)
 
 ### Replicamos el archiivo tornado_plot_data_QA_QC.csv
 
@@ -69,7 +115,9 @@ subsector_totals_ch4 = ["emission_co2e_ch4_agrc",
 ch4 = {i:i.split("_")[-1] for i in subsector_totals_ch4}
 
 #read mapping  
-te_all = pd.read_csv("emission_targets.csv")
+EMMISIONS_TARGETS_FILE_PATH = os.path.join(INPUT_TORNADO_QA_PATH, "emission_targets.csv")
+te_all = pd.read_csv(EMMISIONS_TARGETS_FILE_PATH)
+
 target_country = "IRN"
 te_all = te_all[["Subsector","Gas","Vars","Edgar_Class",target_country]].rename(columns = {target_country : "tvalue"})
 
@@ -144,12 +192,15 @@ data["strategy_code"] = data["strategy_code"].apply(lambda x : x.replace("TORNAD
 data["strategy_code"] = data["strategy_code"].apply(lambda x : x.replace("_HIGHEST","" ))
 
 
-strategy_names = pd.read_csv("strategy_names.csv")
+STRATEGY_NAMES_FILE_PATH = os.path.join(INPUT_TORNADO_QA_PATH, "strategy_names.csv")
+strategy_names = pd.read_csv(STRATEGY_NAMES_FILE_PATH)
 
 strategy_names["strategy_code"] = strategy_names["strategy_code"].apply(lambda x: x.replace("TX:",""))
 
 
 data = data.merge(right = strategy_names, on = "strategy_code")
 
-data.to_csv("tornado_plot_data_QA_QC_nuevo.csv", index = False)
+TORNADO_PLOT_DATA_QA_FILE_PATH = os.path.join(OUTPUT_TORNADO_QA_PATH, "tornado_plot_data_QA_QC_nuevo.csv")
+
+data.to_csv(TORNADO_PLOT_DATA_QA_FILE_PATH, index = False)
 

@@ -11,6 +11,7 @@ import numpy as np
 import re
 
 import os 
+import shutil
 
 from multiprocessing import Pool
 
@@ -88,9 +89,20 @@ class CostBenefits:
                 ) -> Session:
         
         FILE_PATH = os.path.dirname(os.path.abspath(__file__))
-        DB_FILE_PATH = build_path([FILE_PATH, "database", "cb_data.db"])
 
-        engine = create_engine(f"sqlite:///{DB_FILE_PATH}")
+        # Source DB path
+        DB_FILE_PATH = build_path([FILE_PATH, "database", "backup", "cb_data.db"])
+        
+        # Destination DB path
+        DB_TMP_FILE_PATH = build_path([FILE_PATH, "database", "tmp_cb_data.db"])
+        
+        # Copy tmp DB file
+        shutil.copyfile(DB_FILE_PATH, DB_TMP_FILE_PATH)
+
+        # Create engine
+        engine = create_engine(f"sqlite:///{DB_TMP_FILE_PATH}")
+        
+        # Create Session
         Session = sessionmaker(bind=engine)
 
         return Session()
@@ -129,7 +141,7 @@ class CostBenefits:
         pop_livestock["total_tlu"] = pop_livestock["value"] * pop_livestock["tlu"]
 
         pop_livestock_summarized = pop_livestock.groupby(SSP_GLOBAL_SIMULATION_IDENTIFIERS).\
-                                                    agg({"total_tlu" : sum}).\
+                                                    agg({"total_tlu" : "sum"}).\
                                                     rename(columns={"total_tlu":"lvst_total_tlu"}).\
                                                     reset_index()
 
@@ -349,6 +361,61 @@ class CostBenefits:
                 print("La TX no se encuentra en la estrategia")
                 return pd.DataFrame()
 
+    ######################################################
+	#------ METHODOS TO INTERACT WITH THE DATABASE ------#
+	######################################################
+
+    def get_cost_factors(
+                        self
+        ) -> pd.DataFrame:
+        
+        return pd.read_sql(self.session.query(CostFactor).statement, self.session.bind) 
+
+    def get_technical_costs(
+                        self
+        ) -> pd.DataFrame:
+
+        return pd.read_sql(self.session.query(TransformationCost).statement, self.session.bind) 
+    
+    def update_all_cost_factors_table(
+                        self,
+                        new_cost_factors_table : pd.DataFrame
+        ) -> None:
+
+        # Delete all records from cost_factors table
+        self.session.query(CostFactor).delete()
+        self.session.commit()
+
+        # Update records with the new dataframe
+        data_fields = new_cost_factors_table.columns
+
+        self.session.bulk_save_objects(
+                    [CostFactor(**{tb_fields : record_fields for tb_fields,record_fields in zip(data_fields, record)}) for record in new_cost_factors_table.to_records(index = False) ]
+        )
+
+        self.session.commit()
+
+
+    def update_all_technical_costs_table(
+                        self,
+                        new_transformation_costs_table : pd.DataFrame
+        ) -> None:
+
+        # Delete all records from transformation_costs table
+        self.session.query(TransformationCost).delete()
+        self.session.commit()
+
+        # Update records with the new dataframe
+        data_fields = new_transformation_costs_table.columns
+
+        self.session.bulk_save_objects(
+                    [TransformationCost(**{tb_fields : record_fields for tb_fields,record_fields in zip(data_fields, record)}) for record in new_transformation_costs_table.to_records(index = False) ]
+        )
+
+        self.session.commit()
+
+
+
     ##############################################
 	#------ SYSTEM COSTS METHODS	   ------#
 	##############################################
@@ -373,10 +440,15 @@ class CostBenefits:
     
     def compute_system_cost_for_all_strategies(
                         self,
+                        new_system_cost_definition : Union[pd.DataFrame,None] = None,
                         strategy_code_base : Union[str,None] = None,
                         verbose : bool = True
                         ) -> pd.DataFrame:
         
+        ## If new_system_cost_definition is not None, update records
+        if isinstance(new_system_cost_definition, pd.DataFrame):
+            self.update_all_cost_factors_table(new_system_cost_definition)
+
         all_strategies = self.get_all_strategies_on_data()
         accumulate_system_costs_all_strat = []
         total_strategies = len(all_strategies)
@@ -429,10 +501,15 @@ class CostBenefits:
 
     def compute_technical_cost_for_all_strategies(
                         self,
+                        new_technical_cost_definition : Union[pd.DataFrame,None] = None,
                         strategy_code_base : Union[str,None] = None,
                         verbose : bool = True
                         ) -> pd.DataFrame:
         
+        ## If new_technical_cost_definition is not None, update records
+        if isinstance(new_technical_cost_definition, pd.DataFrame):
+            self.update_all_technical_costs_table(new_technical_cost_definition)
+
         all_strategies = self.get_all_strategies_on_data()
         accumulate_technical_costs_all_strat = []
         total_strategies = len(all_strategies)
@@ -543,7 +620,7 @@ class CostBenefits:
 
     def export_db_to_excel(
                         self,
-                        PATH : str = None
+                        FP_EXCEL_CB_DEFINITION : str = None
         ) -> None:
 
         list_of_tables = [TXTable,CostFactor,TransformationCost,StrategyInteraction,AgrcLVSTProductivityCostGDP,AgrcRiceMGMTTX,ENTCReduceLosses,
@@ -553,7 +630,7 @@ class CostBenefits:
 
 
         # create a excel writer object
-        with pd.ExcelWriter("cb_config_params.xlsx") as writer:
+        with pd.ExcelWriter(FP_EXCEL_CB_DEFINITION) as writer:
 
             for tb in list_of_tables:
                 #print(tb.__tablename__)
