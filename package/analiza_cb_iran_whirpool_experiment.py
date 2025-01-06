@@ -8,20 +8,25 @@ from costs_benefits_ssp.model.cb_data_model import TXTable,CostFactor,Transforma
 
 
 ##---- Definimos directorios
+
+DIR_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/remote/cb_ssp_refac/package"
+
+build_path = lambda PATH  : os.path.abspath(os.path.join(*PATH))
+
 ### Directorio de salidas de SSP
-SSP_RESULTS_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/ssp_results"
+SSP_RESULTS_PATH = build_path([DIR_PATH,"ssp_results"])
 
 ### Directorio de configuración de tablas de costos
-CB_DEFAULT_DEFINITION_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/cb_definition_data"
+CB_DEFAULT_DEFINITION_PATH = build_path([DIR_PATH, "cb_definition_data"])
 
 ### Directorio de salidas del módulo de costos y beneficios
-OUTPUT_CB_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/output_cb_mod"
+OUTPUT_CB_PATH = build_path([DIR_PATH, "output_cb_mod"])
 
 ### Directorio de datos requeridos paragenerar el archivo whirlpool_plot_data_QA_QC.csv
-INPUT_WHIRLPOOL_QA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/input_data_whirlpool_QA"
+INPUT_WHIRLPOOL_QA_PATH = build_path([DIR_PATH, "input_data_whirlpool_QA"])
 
 ### Directorio de salidas del archivo whirlpool_plot_data_QA_QC.csv
-OUTPUT_WHIRLPOOL_QA_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package/output_whirlpool_QA"
+OUTPUT_WHIRLPOOL_QA_PATH = build_path([DIR_PATH, "output_whirlpool_QA"])
 
 
 ## Cargamos los datos
@@ -29,6 +34,9 @@ ssp_data = pd.read_csv(os.path.join(SSP_RESULTS_PATH, "iran.csv"))
 att_primary = pd.read_csv(os.path.join(SSP_RESULTS_PATH, "ATTRIBUTE_PRIMARY.csv"))
 att_strategy = pd.read_csv(os.path.join(SSP_RESULTS_PATH, "ATTRIBUTE_STRATEGY.csv"))
 strategy_code_base = "BASE"
+
+## Remueve algunas variables de ssp 
+#ssp_data = ssp_data.drop(columns = ['yf_agrc_vegetables_and_vines_tonne_ha', 'totalvalue_enfu_fuel_consumed_inen_fuel_furnace_gas'])
 
 ## Instanciamos un objeto de la clase CostBenefits 
 cb = CostBenefits(ssp_data, att_primary, att_strategy, strategy_code_base)
@@ -48,7 +56,7 @@ cb.load_cb_parameters(CB_DEFAULT_DEFINITION_FILE_PATH)
 df_cost_factors = pd.read_sql(cb.session.query(CostFactor).statement, cb.session.bind)
 
 ## Get all system cost variable for a specific cb_var_group
-cb_var_group = "entc_sector_electricity_cost_factors"
+cb_var_group = "wali_sanitation_cost_factors"
 strategy_tx = 'WHIRLPOOL:TX:IPPU:DEC_DEMAND'
 
 all_cb_var_group = df_cost_factors.query(f"cb_var_group=='{cb_var_group}'")["output_variable_name"]
@@ -82,6 +90,11 @@ results_all_pp = cb.cb_process_interactions(results_all)
 # SHIFT any stray costs incurred from 2015 to 2025 to 2025 and 2035
 results_all_pp_shifted = cb.cb_shift_costs(results_all_pp)
 
+# Guardamos las salidas
+WHIRLPOOL_OUTPUT_CB_FILE_PATH = os.path.join(OUTPUT_WHIRLPOOL_QA_PATH, "cost_benefit_results_whirlpool.csv")
+
+results_all_pp_shifted.to_csv(WHIRLPOOL_OUTPUT_CB_FILE_PATH, index = False)
+
 ### Replicamos el archiivo whirlpool_plot_data_QA_QC.csv
 
 ## Load edgar cw gases for Iran
@@ -89,6 +102,7 @@ data = pd.read_csv("whirlpool_edgar_cw_iran_gases.csv")
 
 #now add cost & benefits 
 cb_data = results_all_pp_shifted.copy()
+#cb_data = cb_data.query("variable!='cb:agrc:crop_value:crops_produced:vegetables'").reset_index(drop = True)
 cb_chars = pd.DataFrame([i for i in cb_data.variable.apply(lambda x : x.split(":"))], columns=("name","sector","cb_type","item_1","item_2"))
 cb_data = pd.concat([cb_data, cb_chars], axis = 1)
 
@@ -102,9 +116,9 @@ cdata = cb_data.groupby(["sector", "cb_type", "strategy_code"]).agg({"value" : "
 ### agrc en crop_value
 ### wali en human_health y technical_cost
 
-cdata = cdata.query("not(sector=='agrc' and cb_type=='crop_value')").reset_index(drop=True)
-cdata = cdata.query("not(sector=='inen' and cb_type=='sector_specific')").reset_index(drop=True)
-cdata = cdata.query("not(sector=='wali' and (cb_type=='human_health' or cb_type=='technical_cost') )").reset_index(drop=True)
+#cdata = cdata.query("not(sector=='agrc' and cb_type=='crop_value')").reset_index(drop=True)
+#cdata = cdata.query("not(sector=='inen' and cb_type=='sector_specific')").reset_index(drop=True)
+#cdata = cdata.query("not(sector=='wali' and (cb_type=='human_health' or cb_type=='technical_cost') )").reset_index(drop=True)
 
 id_vars = ["strategy","strategy_id","primary_id","region","strategy_code"]
 fvars = ["emission_co2e_total_diff","emission_co2e_ch4_total_diff"]
