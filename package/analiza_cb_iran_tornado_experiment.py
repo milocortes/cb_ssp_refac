@@ -14,7 +14,7 @@ DIR_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package"
 build_path = lambda PATH  : os.path.abspath(os.path.join(*PATH))
 
 ### Directorio de salidas de SSP
-SSP_RESULTS_PATH = build_path([DIR_PATH,"ssp_results", "whirlpool"])
+SSP_RESULTS_PATH = build_path([DIR_PATH,"ssp_results", "against  baseline"])
 
 ### Directorio de configuración de tablas de costos
 CB_DEFAULT_DEFINITION_PATH = build_path([DIR_PATH, "cb_definition_data"])
@@ -22,11 +22,11 @@ CB_DEFAULT_DEFINITION_PATH = build_path([DIR_PATH, "cb_definition_data"])
 ### Directorio de salidas del módulo de costos y beneficios
 OUTPUT_CB_PATH = build_path([DIR_PATH, "output_cb_mod"])
 
-### Directorio de datos requeridos paragenerar el archivo whirlpool_plot_data_QA_QC.csv
-INPUT_WHIRLPOOL_QA_PATH = build_path([DIR_PATH, "input_data_whirlpool_QA"])
+### Directorio de datos requeridos paragenerar el archivo tornado_plot_data_QA_QC.csv
+INPUT_TORNADO_QA_PATH = build_path([DIR_PATH, "input_data_tornado_QA"])
 
-### Directorio de salidas del archivo whirlpool_plot_data_QA_QC.csv
-OUTPUT_WHIRLPOOL_QA_PATH = build_path([DIR_PATH, "output_whirlpool_QA"])
+### Directorio de salidas del archivo tornado_plot_data_QA_QC.csv
+OUTPUT_TORNADO_QA_PATH = build_path([DIR_PATH, "output_tornado_QA"])
 
 ## Cargamos los datos
 ssp_data = pd.read_csv(os.path.join(SSP_RESULTS_PATH, "iran.csv"))
@@ -34,10 +34,10 @@ att_primary = pd.read_csv(os.path.join(SSP_RESULTS_PATH, "ATTRIBUTE_PRIMARY.csv"
 att_strategy = pd.read_csv(os.path.join(SSP_RESULTS_PATH, "ATTRIBUTE_STRATEGY.csv"))
 
 # Asumimos que la ejecución con el primary id 75075 es la estrategia PFLO:NET_ZERO
-net_zero = pd.DataFrame([(75075,0,6005,0)], columns=["primary_id", "design_id", "strategy_id", "future_id"])
-att_primary = pd.concat([att_primary, net_zero], ignore_index=True)
+#net_zero = pd.DataFrame([(75075,0,6005,0)], columns=["primary_id", "design_id", "strategy_id", "future_id"])
+#att_primary = pd.concat([att_primary, net_zero], ignore_index=True)
 
-strategy_code_base = "PFLO:NET_ZERO"
+strategy_code_base = "BASE"
 
 ## Remueve algunas variables de ssp 
 #ssp_data = ssp_data.drop(columns = ['yf_agrc_vegetables_and_vines_tonne_ha', 'totalvalue_enfu_fuel_consumed_inen_fuel_furnace_gas'])
@@ -61,7 +61,7 @@ cb.load_cb_parameters(CB_DEFAULT_DEFINITION_FILE_PATH)
 
 ## Get all system cost variable for a specific cb_var_group
 #cb_var_group = "wali_sanitation_cost_factors"
-#strategy_tx = 'WHIRLPOOL:TX:IPPU:DEC_DEMAND'
+#strategy_tx = 'TORNADO:TX:IPPU:DEC_DEMAND'
 
 #all_cb_var_group = df_cost_factors.query(f"cb_var_group=='{cb_var_group}'")["output_variable_name"]
 
@@ -95,11 +95,11 @@ results_all_pp = cb.cb_process_interactions(results_all)
 results_all_pp_shifted = cb.cb_shift_costs(results_all_pp)
 
 # Guardamos las salidas
-WHIRLPOOL_OUTPUT_CB_FILE_PATH = os.path.join(OUTPUT_WHIRLPOOL_QA_PATH, "cost_benefit_results_whirlpool.csv")
+TORNADO_OUTPUT_CB_FILE_PATH = os.path.join(OUTPUT_TORNADO_QA_PATH, "cost_benefit_results_tornado.csv")
 
-results_all_pp_shifted.to_csv(WHIRLPOOL_OUTPUT_CB_FILE_PATH, index = False)
+results_all_pp_shifted.to_csv(TORNADO_OUTPUT_CB_FILE_PATH, index = False)
 
-### Replicamos el archiivo whirlpool_plot_data_QA_QC.csv
+### Replicamos el archiivo tornado_plot_data_QA_QC.csv
 
 
 #filter subsector totals
@@ -124,7 +124,7 @@ subsector_totals_ch4 = ["emission_co2e_ch4_agrc",
 ch4 = {i:i.split("_")[-1] for i in subsector_totals_ch4}
 
 #read mapping  
-EMMISIONS_TARGETS_FILE_PATH = os.path.join(INPUT_WHIRLPOOL_QA_PATH, "emission_targets.csv")
+EMMISIONS_TARGETS_FILE_PATH = os.path.join(INPUT_TORNADO_QA_PATH, "emission_targets.csv")
 te_all = pd.read_csv(EMMISIONS_TARGETS_FILE_PATH)
 
 target_country = "IRN"
@@ -144,7 +144,7 @@ data["emission_co2e_ch4_total"] = data[subsector_totals_ch4].sum(axis = 1)
 data = data.drop(columns="time_period").groupby(["primary_id", "region"]).sum().reset_index()
 
 #add reference 
-estrategia_base = 75075
+estrategia_base = 0
 data_0 = data.query(f"primary_id == {estrategia_base}").drop(columns=["primary_id", "region"])
 data_diff = data.set_index(["primary_id", "region"]) - data_0.to_numpy()
 data_diff.columns = [f"{i}_diff" for i in data_diff.columns ]
@@ -211,18 +211,21 @@ data["additional_benefits"] = data[[i for i in cb_cats if i != "technical_cost"]
 data["total_transformation_costs"] = data[ ["technical_cost","technical_savings","fuel_cost"]].sum(axis = 1)
 data["total_transformation_costs_mi_CO2e"] = (data["total_transformation_costs"]/abs(data["emission_co2e_total_diff"]))*1000
 
+# Visualización
+data[["strategy", "emission_co2e_total_diff", "net_benefit", "net_benefit_mi_CO2e"]]
+
 #read strategy names
-STRATEGY_NAMES_FILE_PATH = os.path.join(INPUT_WHIRLPOOL_QA_PATH, "strategy_names.csv")
+STRATEGY_NAMES_FILE_PATH = os.path.join(INPUT_TORNADO_QA_PATH, "strategy_names.csv")
 strategy_names = pd.read_csv(STRATEGY_NAMES_FILE_PATH)
 strategy_names["strategy_code"] = strategy_names["strategy_code"].apply(lambda x: x.replace("TX:",""))
 
-data.strategy_code = data.strategy_code.apply(lambda x : x.replace("WHIRLPOOL:TX:", "").replace("_LOWER", "").replace("_HIGHER", "").replace("_HIGHEST",""))
+data.strategy_code = data.strategy_code.apply(lambda x : x.replace("TORNADO:", "").replace("_LOWER", "").replace("_HIGHER", "").replace("_HIGHEST",""))
 
 
 data = data.merge(right = strategy_names, on = "strategy_code")
 
-WHIRLPOOL_PLOT_DATA_QA_FILE_PATH = os.path.join(OUTPUT_WHIRLPOOL_QA_PATH, "whirlpool_plot_data_QA_QC_nuevo.csv")
+TORNADO_PLOT_DATA_QA_FILE_PATH = os.path.join(OUTPUT_TORNADO_QA_PATH, "tornado_plot_data_QA_QC_nuevo.csv")
 
-data.to_csv(WHIRLPOOL_PLOT_DATA_QA_FILE_PATH, index = False)
+data.to_csv(TORNADO_PLOT_DATA_QA_FILE_PATH, index = False)
 
 
