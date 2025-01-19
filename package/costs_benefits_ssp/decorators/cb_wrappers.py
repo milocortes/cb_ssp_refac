@@ -10,9 +10,9 @@ def cb_wrapper(func):
         diff_var = cb_orm.difference_variable.replace("*", ".*")
         diff_var_list = [string for string in self.ssp_list_of_vars if  re.match(re.compile(diff_var), string)]
 
-        #if not diff_var_list:
-        #  print(f'ERROR IN CB_WRAPPER: No variables match : {diff_var}')
-        #  return None 
+        if not diff_var_list:
+          print(f'ERROR IN CB_WRAPPER: No variables match : {diff_var}')
+          return None 
          
         # For each variable that matches the substring, calculate the costs and benefits and acumulate the results
         result_tmp = []

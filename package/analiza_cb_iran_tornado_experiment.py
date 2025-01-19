@@ -9,7 +9,7 @@ from costs_benefits_ssp.model.cb_data_model import TXTable,CostFactor,Transforma
 
 ##---- Definimos directorios
 
-DIR_PATH = "/home/milo/Documents/egtp/SISEPUEDE/CB/cb_ssp_refac/package"
+DIR_PATH = "/home/milo/Documents/egtp/SISEPUEDE/COST_BENEFITS/refactorizacion/remote/cb_ssp_refac/package"
 
 build_path = lambda PATH  : os.path.abspath(os.path.join(*PATH))
 
@@ -37,7 +37,7 @@ att_strategy = pd.read_csv(os.path.join(SSP_RESULTS_PATH, "ATTRIBUTE_STRATEGY.cs
 #net_zero = pd.DataFrame([(75075,0,6005,0)], columns=["primary_id", "design_id", "strategy_id", "future_id"])
 #att_primary = pd.concat([att_primary, net_zero], ignore_index=True)
 
-strategy_code_base = "BASE"
+strategy_code_base = "LNDU:PLUR"
 
 ## Remueve algunas variables de ssp 
 #ssp_data = ssp_data.drop(columns = ['yf_agrc_vegetables_and_vines_tonne_ha', 'totalvalue_enfu_fuel_consumed_inen_fuel_furnace_gas'])
@@ -144,7 +144,7 @@ data["emission_co2e_ch4_total"] = data[subsector_totals_ch4].sum(axis = 1)
 data = data.drop(columns="time_period").groupby(["primary_id", "region"]).sum().reset_index()
 
 #add reference 
-estrategia_base = 0
+estrategia_base = 10010
 data_0 = data.query(f"primary_id == {estrategia_base}").drop(columns=["primary_id", "region"])
 data_diff = data.set_index(["primary_id", "region"]) - data_0.to_numpy()
 data_diff.columns = [f"{i}_diff" for i in data_diff.columns ]

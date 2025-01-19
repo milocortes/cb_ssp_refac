@@ -1,0 +1,17 @@
+procs:
+  run_1:
+    shell: "bash run_experiments_lousiana.sh 60 8 1"
+  run_2:
+    shell: "bash run_experiments_lousiana.sh 60 8 2"
+  run_3:
+    shell: "bash run_experiments_lousiana.sh 60 8 3"
+  run_4:
+    shell: "bash run_experiments_lousiana.sh 60 8 4"
+  run_5:
+    shell: "bash run_experiments_lousiana.sh 60 8 5"
+  run_6:
+    shell: "bash run_experiments_lousiana.sh 60 8 6"
+  run_7:
+    shell: "bash run_experiments_lousiana.sh 60 8 7"
+  run_8:
+    shell: "bash run_experiments_lousiana.sh 60 8 8"
