@@ -33,6 +33,7 @@ from costs_benefits_ssp.model.cb_data_model import (AgrcLVSTProductivityCostGDP,
                                                     WALISanitationClassificationSP)
 
 from costs_benefits_ssp.model.cb_update_data_model import update_db_schema
+from sqlalchemy import update
 
 class CostBenefits:
     """
@@ -375,6 +376,12 @@ class CostBenefits:
 	#------ METHODOS TO INTERACT WITH THE DATABASE ------#
 	######################################################
 
+    def get_all_cost_factor_variables(
+                        self
+        ) -> pd.DataFrame:
+        
+        return pd.read_sql(self.session.query(TXTable).statement, self.session.bind) 
+
     def get_cost_factors(
                         self
         ) -> pd.DataFrame:
@@ -424,6 +431,22 @@ class CostBenefits:
 
         self.session.commit()
 
+
+    def update_cost_factor_register(self, 
+                                    cb_var_name : str,
+                                    cb_var_fields : Dict[str, Union[float,int,str]]) -> None:
+        # Identificamos qué tipo de factor de costo es
+        tx_query = self.session.query(TXTable).filter(TXTable.output_variable_name == cb_var_name).first() 
+
+        if tx_query.cost_type == "system_cost":
+            stmt = update(CostFactor).where(CostFactor.output_variable_name == cb_var_name).values(**cb_var_fields)
+            self.session.execute(stmt)
+            self.session.commit()
+        elif tx_query.cost_type == "transformation_cost":
+            stmt = update(TransformationCost).where(CostFactor.output_variable_name == cb_var_name).values(**cb_var_fields)
+            self.session.execute(stmt)
+            self.session.commit()
+        
 
 
     ##############################################
