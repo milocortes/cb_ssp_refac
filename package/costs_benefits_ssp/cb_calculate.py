@@ -247,7 +247,9 @@ class CostBenefits:
     def mapping_strategy_specific_functions(
                         self,
                         cb_function : str,
-                        cb_orm : Union[TransformationCost, CostFactor]
+                        cb_orm : Union[TransformationCost, CostFactor],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None
         ) -> Callable:
         
         match cb_function:
@@ -318,7 +320,8 @@ class CostBenefits:
                         strategy_code_tx : str,
                         strategy_code_base : Union[str,None] = None,
                         verbose : bool = True,
-                        dec_original_multiplier_value : float = 1.0
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None
                         ) -> pd.DataFrame:
 
         ## Obteniendo registro de la db
@@ -349,11 +352,14 @@ class CostBenefits:
             if cb_orm.cb_function=="cb:enfu:fuel_cost:X:X":
                 cb_orm.cb_function = 'cb_difference_between_two_strategies'
 
-            # Actualizamos multiplicador
-            cb_orm.multiplier *= dec_original_multiplier_value
-
             # Aplicamos la función de costo
-            df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
+            if data_baseline and data_tx:
+                df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,
+                                                                             cb_orm, 
+                                                                             data_baseline = data_baseline,
+                                                                             data_tx = data_tx)                
+            else:    
+                df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
             
             return df_cb_results_var
         elif cb_orm.tx_table.cost_type == "transformation_cost":
@@ -361,12 +367,16 @@ class CostBenefits:
             print("La variable se evalúa en Transformation Cost")
             
             if self.tx_in_strategy(cb_orm.transformation_code, cb_orm.strategy_code_tx):
-                # Actualizamos multiplicador
-                cb_orm.multiplier *= dec_original_multiplier_value
 
                 # Aplicamos la función de costo
-                df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
-            
+                if data_baseline and data_tx:
+                    df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,
+                                                                                 cb_orm,
+                                                                                 data_baseline = data_baseline,
+                                                                                 data_tx = data_tx)
+                else:
+                    df_cb_results_var = self.mapping_strategy_specific_functions(cb_orm.cb_function,cb_orm)
+
                 return df_cb_results_var
             else:
                 print("La TX no se encuentra en la estrategia")
@@ -750,39 +760,48 @@ class CostBenefits:
     @cb_wrapper
     def cb_difference_between_two_strategies(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
-                        ) -> pd.DataFrame:
+                        cb_orm : Union[CostFactor,TransformationCost, None] = None,
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                    
+                        ) -> Union[pd.DataFrame, None]:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function in ['cb_difference_between_two_strategies', 'cb_apply_cost_factors']:
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                datap_base = data_baseline[SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
+                datap_tx   = data_tx[SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
+                #get the data tables and merge them
+                datap_base = data[data["strategy_code"]==cb_orm.strategy_code_base][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
+                datap_tx   = data[data["strategy_code"]==cb_orm.strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
+                
+            datap_base = datap_base.drop(columns=["primary_id", "strategy_code"])
 
-        #get the data tables and merge them
-        datap_base = data[data["strategy_code"]==cb_orm.strategy_code_base][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
-        datap_tx   = data[data["strategy_code"]==cb_orm.strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
-        
-        datap_base = datap_base.drop(columns=["primary_id", "strategy_code"])
+            tx_suffix = '_tx'
+            base_suffix = '_base'
 
-        tx_suffix = '_tx'
-        base_suffix = '_base'
+            data_merged = datap_tx.merge(right = datap_base, on =  ['region', 'time_period', 'future_id'], suffixes=(tx_suffix, base_suffix))
 
-        data_merged = datap_tx.merge(right = datap_base, on =  ['region', 'time_period', 'future_id'], suffixes=(tx_suffix, base_suffix))
+            #Calculate the difference in variables and then apply the multiplier, which may change over time
+            #Assume cost change only begins in 2023
 
-        #Calculate the difference in variables and then apply the multiplier, which may change over time
-        #Assume cost change only begins in 2023
+            data_merged["difference_variable"] = cb_orm.diff_var
 
-        data_merged["difference_variable"] = cb_orm.diff_var
+            data_merged["difference_value"] = data_merged[f"{cb_orm.diff_var}{tx_suffix}"] - data_merged[f"{cb_orm.diff_var}{base_suffix}"]
 
-        data_merged["difference_value"] = data_merged[f"{cb_orm.diff_var}{tx_suffix}"] - data_merged[f"{cb_orm.diff_var}{base_suffix}"]
+            data_merged["time_period_for_multiplier_change"] = np.maximum(0, data_merged["time_period"] - SSP_GLOBAL_TIME_PERIOD_2023)
 
-        data_merged["time_period_for_multiplier_change"] = np.maximum(0, data_merged["time_period"] - SSP_GLOBAL_TIME_PERIOD_2023)
+            data_merged["variable"] = cb_orm.output_variable_name
 
-        data_merged["variable"] = cb_orm.output_variable_name
+            data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier*cb_orm.annual_change**data_merged["time_period_for_multiplier_change"]
 
-        data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier*cb_orm.annual_change**data_merged["time_period_for_multiplier_change"]
-
-        data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
-        
-        return data_merged
+            data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            
+            return data_merged
+        else:
+            print("The data cannot be computed with the cb_difference_between_two_strategies function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     # ---------------------------------------------
     # ------ CB_SCALE_VARIABLE_IN_STRATEGY 
@@ -794,33 +813,43 @@ class CostBenefits:
     @cb_wrapper
     def cb_scale_variable_in_strategy(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None
                         ) -> pd.DataFrame:
 
-        print(f"                       {cb_orm.diff_var}")
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
 
-        id_vars  = ['region','time_period', 'strategy_code', 'future_id']
+        if cb_orm.cb_function == 'cb_scale_variable_in_strategy':
+            
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
+
+            id_vars  = ['region','time_period', 'strategy_code', 'future_id']
+            
+            datap_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
+
+            #This is code copied over from another function, so data_merged is just datap_tx
+            data_merged = datap_tx.copy()
+            data_merged["difference"] = data_merged["value"]
+            
+            data_merged["time_period_for_multiplier_change"] = np.maximum(0,data_merged["time_period"]-SSP_GLOBAL_TIME_PERIOD_2023)
+            data_merged["values"] = data_merged["difference"]*cb_orm.multiplier*cb_orm.annual_change**data_merged["time_period_for_multiplier_change"]  
+
+            tmp = data_merged[id_vars]
+            tmp["difference_variable"] = cb_orm.diff_var
+            tmp["difference_value"] = data_merged["difference"]
+            tmp["variable"] = cb_orm.output_variable_name
+            tmp["value"] = data_merged["values"]
+            output = tmp.copy()
         
-        datap_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
-
-        #This is code copied over from another function, so data_merged is just datap_tx
-        data_merged = datap_tx.copy()
-        data_merged["difference"] = data_merged["value"]
-        
-        data_merged["time_period_for_multiplier_change"] = np.maximum(0,data_merged["time_period"]-SSP_GLOBAL_TIME_PERIOD_2023)
-        data_merged["values"] = data_merged["difference"]*cb_orm.multiplier*cb_orm.annual_change**data_merged["time_period_for_multiplier_change"]  
-
-        tmp = data_merged[id_vars]
-        tmp["difference_variable"] = cb_orm.diff_var
-        tmp["difference_value"] = data_merged["difference"]
-        tmp["variable"] = cb_orm.output_variable_name
-        tmp["value"] = data_merged["values"]
-        output = tmp.copy()
-    
-        return output 
-
+            return output 
+        else:
+            print("The data cannot be computed with the cb_scale_variable_in_strategy function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     # ---------------------------------------------
     # ------ CB_FRACTION_CHANGE 
@@ -842,141 +871,219 @@ class CostBenefits:
     @cb_wrapper
     def cb_fraction_change(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None        
                         ) -> pd.DataFrame:
 
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
-        invert = cb_orm.arg2
-        frac_var = cb_orm.arg1
+        if cb_orm.cb_function == "cb_fraction_change":
 
-        #get teh change in fractions
-        fraction_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, frac_var)
-        fraction_base = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, frac_var)
-    
-        if invert == 1 :
-            fraction_tx["value"] = 1/fraction_tx["value"]
-            fraction_base["value"] = 1/fraction_base["value"]
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
+            
+            invert = cb_orm.arg2
+            frac_var = cb_orm.arg1
+
+            #get tech change in fractions
+            fraction_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, frac_var)
+            fraction_base = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, frac_var)
+
+            if invert == 1 :
+                fraction_tx["value"] = 1/fraction_tx["value"]
+                fraction_base["value"] = 1/fraction_base["value"]
+            
+            data_merged = fraction_tx.merge(right = fraction_base, on = ['time_period', 'region', 'variable'], suffixes = ['.tx_frac', '.ba_frac'])
+            data_merged["fraction_change"] = data_merged["value.tx_frac"]/data_merged["value.ba_frac"]
+            data_merged["fraction_multiplier"] = (1-data_merged["fraction_change"])
         
-        data_merged = fraction_tx.merge(right = fraction_base, on = ['time_period', 'region', 'variable'], suffixes = ['.tx_frac', '.ba_frac'])
-        data_merged["fraction_change"] = data_merged["value.tx_frac"]/data_merged["value.ba_frac"]
-        data_merged["fraction_multiplier"] = (1-data_merged["fraction_change"])
-    
 
-        #get the output results
-        output_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
-        data_merged = data_merged.merge(right = output_tx, on = ['time_period', 'region'], suffixes=['.tx_frac', '.effect'])
-        data_merged = data_merged.rename(columns = {"value" : "effect_value"})
-    
-        #get the avoided value
-        data_merged["difference_variable"] = cb_orm.diff_var
-        data_merged["difference_value"] = data_merged["effect_value"]*data_merged["fraction_multiplier"]
-        data_merged["variable"] = cb_orm.output_variable_name
-
-        data_merged["time_period_for_multiplier_change"] = np.maximum(0,data_merged["time_period"]-SSP_GLOBAL_TIME_PERIOD_2023)
-        data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier*cb_orm.annual_change**data_merged["time_period_for_multiplier_change"]    
-    
-        data_merged_results = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
-    
-        #any divide-by-zero NAs from our earlier division gets a 0
-        data_merged_results = data_merged_results.replace(np.nan, 0.0)
+            #get the output results
+            output_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
+            data_merged = data_merged.merge(right = output_tx, on = ['time_period', 'region'], suffixes=['.tx_frac', '.effect'])
+            data_merged = data_merged.rename(columns = {"value" : "effect_value"})
         
-        return data_merged_results
+            #get the avoided value
+            data_merged["difference_variable"] = cb_orm.diff_var
+            data_merged["difference_value"] = data_merged["effect_value"]*data_merged["fraction_multiplier"]
+            data_merged["variable"] = cb_orm.output_variable_name
+
+            data_merged["time_period_for_multiplier_change"] = np.maximum(0,data_merged["time_period"]-SSP_GLOBAL_TIME_PERIOD_2023)
+            data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier*cb_orm.annual_change**data_merged["time_period_for_multiplier_change"]    
+        
+            data_merged_results = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+        
+            #any divide-by-zero NAs from our earlier division gets a 0
+            data_merged_results = data_merged_results.replace(np.nan, 0.0)
+            
+            
+            return data_merged_results
+
+        else:
+            print("The data cannot be computed with the cb_fraction_change function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     #----------ENTC:REDUCE_LOSSES: Technical cost of maintaining grid ----------
     @cb_wrapper
     def cb_entc_reduce_losses(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
 
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_entc_reduce_losses":
 
-        #get the loss file
-        cb_transmission_loss_costs = pd.read_sql(self.session.query(ENTCReduceLosses).statement, self.session.bind) 
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
 
-        #map ISO3 to the reigons
-        country_codes = pd.read_sql(self.session.query(CountriesISO).statement, self.session.bind)
+            #get the loss file
+            cb_transmission_loss_costs = pd.read_sql(self.session.query(ENTCReduceLosses).statement, self.session.bind) 
 
-        # merge dataframes
-        cb_transmission_loss_costs = cb_transmission_loss_costs.merge(right = country_codes, on = "iso_code3")
-    
-        data_strategy = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
-        data_output = data_strategy.merge(right = cb_transmission_loss_costs, on = 'region')
-        data_output["variable"] = cb_orm.output_variable_name
-        data_output["value"] = data_output["annual_investment_USD"]
-        data_output["difference_variable"] = 'N/A (constant annual cost)'
-        data_output["difference_value"] = data_output["annual_investment_USD"]
-    
-        data_output = data_output[SSP_GLOBAL_COLNAMES_OF_RESULTS] 
-    
-        return data_output
+            #map ISO3 to the reigons
+            country_codes = pd.read_sql(self.session.query(CountriesISO).statement, self.session.bind)
+
+            # merge dataframes
+            cb_transmission_loss_costs = cb_transmission_loss_costs.merge(right = country_codes, on = "iso_code3")
+        
+            data_strategy = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
+
+            data_output = data_strategy.merge(right = cb_transmission_loss_costs, on = 'region')
+
+            data_output["variable"] = cb_orm.output_variable_name
+            data_output["value"] = data_output["annual_investment_USD"]
+            data_output["difference_variable"] = 'N/A (constant annual cost)'
+            data_output["difference_value"] = data_output["annual_investment_USD"]
+        
+            data_output = data_output[SSP_GLOBAL_COLNAMES_OF_RESULTS] 
+        
+            return data_output
+        
+        else:
+            print("The data cannot be computed with the cb_entc_reduce_losses function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     #----------IPPU:CLINKER------------------}
     @cb_wrapper
     def cb_ippu_clinker(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
 
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_ippu_clinker":
 
-        #get the clinker fraction data
-        diff_clinker = self.mapping_strategy_specific_functions("cb_difference_between_two_strategies",cb_orm)
-        
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)                
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
+                #get the data tables and merge them
+                data_baseline = data[data["strategy_code"]==cb_orm.strategy_code_base][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
+                data_tx   = data[data["strategy_code"]==cb_orm.strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
+                
+            #get the clinker fraction data
+            #ORIGINALMENTE USABAMOS ESTA FUNCION PARA CONSTRUIR EL DATAFRAME. DEBEMOS VERIFICAR ESTO
+            #diff_clinker = self.mapping_strategy_specific_functions("cb_difference_between_two_strategies",cb_orm)
+            datap_base = data_baseline[SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
+            datap_tx   = data_tx[SSP_GLOBAL_SIMULATION_IDENTIFIERS + [cb_orm.diff_var]].reset_index(drop = True)
 
-        data_amt_cement = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, 'prod_ippu_cement_tonne')
-    
-        data_merged = diff_clinker.merge(right = data_amt_cement, on = ['region', 'time_period'], suffixes = ["", ".cement"])
-    
-        data_merged["difference_value"] = data_merged["value.cement"]/(1-data_merged["difference_value"]) - data_merged["value.cement"]
-        data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
-    
-        
-        data_output = data_merged[diff_clinker.columns.to_list()]
-        
-        return data_output
+            datap_base = datap_base.drop(columns=["primary_id", "strategy_code"])
+
+            tx_suffix = '_tx'
+            base_suffix = '_base'
+
+            diff_clinker = datap_tx.merge(right = datap_base, on =  ['region', 'time_period', 'future_id'], suffixes=(tx_suffix, base_suffix))
+
+            #Calculate the difference in variables and then apply the multiplier, which may change over time
+            #Assume cost change only begins in 2023
+
+            diff_clinker["difference_variable"] = cb_orm.diff_var
+
+            diff_clinker["difference_value"] = diff_clinker[f"{cb_orm.diff_var}{tx_suffix}"] - diff_clinker[f"{cb_orm.diff_var}{base_suffix}"]
+
+            diff_clinker["time_period_for_multiplier_change"] = np.maximum(0, diff_clinker["time_period"] - SSP_GLOBAL_TIME_PERIOD_2023)
+
+            diff_clinker["variable"] = cb_orm.output_variable_name
+
+            diff_clinker["value"] = diff_clinker["difference_value"]*cb_orm.multiplier*cb_orm.annual_change**diff_clinker["time_period_for_multiplier_change"]
+
+            diff_clinker = diff_clinker[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+
+            data_amt_cement = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, 'prod_ippu_cement_tonne')
+            
+            data_merged = diff_clinker.merge(right = data_amt_cement, on = ['region', 'time_period'], suffixes = ["", ".cement"])
+            
+            data_merged["difference_value"] = data_merged["value.cement"]/(1-data_merged["difference_value"]) - data_merged["value.cement"]
+            data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
+            
+                
+            data_output = data_merged[diff_clinker.columns.to_list()]
+                
+            return data_output
+
+        else:
+            print("The data cannot be computed with the cb_ippu_clinker function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     #----------IPPU:FGASES-------------------
     @cb_wrapper
     def cb_ippu_florinated_gases( 
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
 
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_ippu_florinated_gases":
 
-        #get all the variables with florinated gases
-        #use nomenclature "emission_co2e_NAMEOFGAS_ippu_" where name of gas contains an "f"
-        emissions_vars = [i for i in self.ssp_list_of_vars if i.startswith('emission_co2e_')]
-        fgases = [i for i in emissions_vars if not ("_co2_" in i or "_n2o_" in i or "_ch4_" in i or "_subsector_" in i)]
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
 
-        #sum up for both strategies
-        data_strategy = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, fgases)
-    
-        data_strategy_summarized = data_strategy.groupby(["region", "time_period", "strategy_code"]).agg({"value" : "sum"}).rename(columns = {"value" : "difference_value"}).reset_index()
-        data_strategy_summarized["difference_variable"] = 'emission_co2e_all_fgases_ippu'
-        data_strategy_summarized["variable"] = output_vars
+            #get all the variables with florinated gases
+            #use nomenclature "emission_co2e_NAMEOFGAS_ippu_" where name of gas contains an "f"
+            emissions_vars = [i for i in self.ssp_list_of_vars if i.startswith('emission_co2e_')]
+            fgases = [i for i in emissions_vars if not ("_co2_" in i or "_n2o_" in i or "_ch4_" in i or "_subsector_" in i)]
+
+            #sum up for both strategies
+            data_strategy = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, fgases)
+        
+            data_strategy_summarized = data_strategy.groupby(["region", "time_period", "strategy_code"]).agg({"value" : "sum"}).rename(columns = {"value" : "difference_value"}).reset_index()
+            data_strategy_summarized["difference_variable"] = 'emission_co2e_all_fgases_ippu'
+            data_strategy_summarized["variable"] = output_vars
 
 
-        data_strategy_base = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, fgases)
-        data_strategy_base_summarized = data_strategy_base.groupby(["region", "time_period", "strategy_code"]).agg({"value" : "sum"}).rename(columns = {"value" : "difference_value"}).reset_index()
-        data_strategy_base_summarized["difference_variable"] = 'emission_co2e_all_fgases_ippu'
-        data_strategy_base_summarized["variable"] = cb_orm.output_variable_name
+            data_strategy_base = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, fgases)
+            data_strategy_base_summarized = data_strategy_base.groupby(["region", "time_period", "strategy_code"]).agg({"value" : "sum"}).rename(columns = {"value" : "difference_value"}).reset_index()
+            data_strategy_base_summarized["difference_variable"] = 'emission_co2e_all_fgases_ippu'
+            data_strategy_base_summarized["variable"] = cb_orm.output_variable_name
 
 
-        #take difference and multiply by cost / CO2e
-        data_fgases_merged = data_strategy_summarized.merge(right = data_strategy_base_summarized, on = ['region', 'time_period'], suffixes = ["", ".base"])
-        data_fgases_merged["difference_value"] = data_fgases_merged["difference_value"] - data_fgases_merged["difference_value.base"]
-        data_fgases_merged["value"] = data_fgases_merged["difference_value"]*cb_orm.multiplier
-    
-        data_fgases_merged = data_fgases_merged[["region","time_period","strategy_code", "difference_variable", "difference_value","variable","value"]]
-    
-        #return result
-        return data_fgases_merged
+            #take difference and multiply by cost / CO2e
+            data_fgases_merged = data_strategy_summarized.merge(right = data_strategy_base_summarized, on = ['region', 'time_period'], suffixes = ["", ".base"])
+            data_fgases_merged["difference_value"] = data_fgases_merged["difference_value"] - data_fgases_merged["difference_value.base"]
+            data_fgases_merged["value"] = data_fgases_merged["difference_value"]*cb_orm.multiplier
+        
+            data_fgases_merged = data_fgases_merged[["region","time_period","strategy_code", "difference_variable", "difference_value","variable","value"]]
+        
+            #return result
+            return data_fgases_merged
+        else:
+            print("The data cannot be computed with the cb_ippu_florinated_gases function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
 
     #--------------FGTV: ALL COSTS ------------
@@ -988,64 +1095,74 @@ class CostBenefits:
     @cb_wrapper
     def cb_fgtv_abatement_costs(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_fgtv_abatement_costs":
 
-        #(1) FUGITIVE EMISSIONS INTENSITY
-        energy_vars = ['energy_demand_enfu_total_fuel_coal', 'energy_demand_enfu_total_fuel_oil', 'energy_demand_enfu_total_fuel_natural_gas']
-        fgtv_vars = [string for string in self.ssp_list_of_vars if  re.match(re.compile('emission_co2e_.*_fgtv_fuel_.*'), string)]
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
+                    
+            #(1) FUGITIVE EMISSIONS INTENSITY
+            energy_vars = ['energy_demand_enfu_total_fuel_coal', 'energy_demand_enfu_total_fuel_oil', 'energy_demand_enfu_total_fuel_natural_gas']
+            fgtv_vars = [string for string in self.ssp_list_of_vars if  re.match(re.compile('emission_co2e_.*_fgtv_fuel_.*'), string)]
 
-        #1. Get the fugitive emissions per PJ of coal and oil together in the baseline
-        energy = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, energy_vars)
-        energy["fuel"] = energy["variable"].apply(lambda x : x.replace('energy_demand_enfu_total_', ''))
-        fgtv = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, fgtv_vars)
-        fgtv["fuel"] = fgtv["variable"].apply(lambda x : x.split("_fgtv_")[-1])
+            #1. Get the fugitive emissions per PJ of coal and oil together in the baseline
+            energy = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, energy_vars)
+            energy["fuel"] = energy["variable"].apply(lambda x : x.replace('energy_demand_enfu_total_', ''))
+            fgtv = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_base, fgtv_vars)
+            fgtv["fuel"] = fgtv["variable"].apply(lambda x : x.split("_fgtv_")[-1])
 
-        #1.a summarize the emissions by fuel
-        vars_to_groupby = ["primary_id", "region", "time_period", "strategy_code", "fuel"]
-        fgtv = fgtv.groupby(vars_to_groupby).agg({"value" : "sum"}).reset_index()
+            #1.a summarize the emissions by fuel
+            vars_to_groupby = ["primary_id", "region", "time_period", "strategy_code", "fuel"]
+            fgtv = fgtv.groupby(vars_to_groupby).agg({"value" : "sum"}).reset_index()
 
-        data_merged_base = energy.merge(right = fgtv, on = vars_to_groupby, suffixes=('.en_base', '.fg_base'))
+            data_merged_base = energy.merge(right = fgtv, on = vars_to_groupby, suffixes=('.en_base', '.fg_base'))
+            
+            #2. Get the fugitive emissions per PJ of coal and oil together in the transformed future
+            energy_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, energy_vars)
+            energy_tx["fuel"] = energy_tx["variable"].apply(lambda x : x.replace('energy_demand_enfu_total_', ''))
+            fgtv_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, fgtv_vars)
+            fgtv_tx["fuel"] = fgtv_tx["variable"].apply(lambda x : x.split("_fgtv_")[-1])
 
-        #2. Get the fugitive emissions per PJ of coal and oil together in the transformed future
-        energy_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, energy_vars)
-        energy_tx["fuel"] = energy_tx["variable"].apply(lambda x : x.replace('energy_demand_enfu_total_', ''))
-        fgtv_tx = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, fgtv_vars)
-        fgtv_tx["fuel"] = fgtv_tx["variable"].apply(lambda x : x.split("_fgtv_")[-1])
+            #2.b summarize the emissions by fuel
+            fgtv_tx = fgtv_tx.groupby(vars_to_groupby).agg({"value" : "sum"}).reset_index()
 
-        #2.b summarize the emissions by fuel
-        fgtv_tx = fgtv_tx.groupby(vars_to_groupby).agg({"value" : "sum"}).reset_index()
+            data_merged_tx = energy_tx.merge(right = fgtv_tx, on = vars_to_groupby, suffixes=('.en_tx', '.fg_tx'))
 
-        data_merged_tx = energy_tx.merge(right = fgtv_tx, on = vars_to_groupby, suffixes=('.en_tx', '.fg_tx'))
+            #3. Merge the two together
+            data_merged = data_merged_tx.merge(right = data_merged_base, on = ['region', 'time_period', 'fuel'], suffixes=['.tx', '.base'])
+            #(2/3) FUGITIVE EMISSIONS INTENSITY and EXPECTED FUGITIVE EMISSIONS
+            #4. Calculate the fugitive emissions per unit demand in the baseline and apply it to the transformed future
+            data_merged["fgtv_co2e_per_demand_base"] = data_merged["value.fg_base"]/data_merged["value.en_base"]
+            data_merged["fgtv_co2e_expected_per_demand"] = data_merged["value.en_tx"]*data_merged["fgtv_co2e_per_demand_base"]
+        
+            #5. Calculate the difference between observed and expected demand
+            data_merged["difference_value"] = data_merged["value.fg_tx"] - data_merged["fgtv_co2e_expected_per_demand"]
+            data_merged["difference_variable"] = data_merged["variable.tx"]
 
-        #3. Merge the two together
-        data_merged = data_merged_tx.merge(right = data_merged_base, on = ['region', 'time_period', 'fuel'], suffixes=['.tx', '.base'])
-        #(2/3) FUGITIVE EMISSIONS INTENSITY and EXPECTED FUGITIVE EMISSIONS
-        #4. Calculate the fugitive emissions per unit demand in the baseline and apply it to the transformed future
-        data_merged["fgtv_co2e_per_demand_base"] = data_merged["value.fg_base"]/data_merged["value.en_base"]
-        data_merged["fgtv_co2e_expected_per_demand"] = data_merged["value.en_tx"]*data_merged["fgtv_co2e_per_demand_base"]
-    
-        #5. Calculate the difference between observed and expected demand
-        data_merged["difference_value"] = data_merged["value.fg_tx"] - data_merged["fgtv_co2e_expected_per_demand"]
-        data_merged["difference_variable"] = data_merged["variable.tx"]
+            #6. Apply the multiplier
+            data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
+            data_merged["variable"] = cb_orm.output_variable_name
 
-        #6. Apply the multiplier
-        data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
-        data_merged["variable"] = cb_orm.output_variable_name
+            #7. Get columns
+            data_merged["strategy_code"] = data_merged["strategy_code.tx"]
+            data_merged["future_id"]= data_merged["future_id.tx"]
+            data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
 
-        #7. Get columns
-        data_merged["strategy_code"] = data_merged["strategy_code.tx"]
-        data_merged["future_id"]= data_merged["future_id.tx"]
-        data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            #8. If tehre are NANs or NAs in the value, replace them with 0.
+            data_merged.replace(np.nan, 0.0)
 
-        #8. If tehre are NANs or NAs in the value, replace them with 0.
-        data_merged.replace(np.nan, 0.0)
-
-        return data_merged
-
+            return data_merged
+        else:
+            print("The data cannot be computed with the cb_fgtv_abatement_costs function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
         
     #----------WASO:WASTE REDUCTION TECHNICAL COSTS------------------
 
@@ -1057,109 +1174,145 @@ class CostBenefits:
     @cb_wrapper
     def cb_waso_reduce_consumer_facing_food_waste(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_waso_reduce_consumer_facing_food_waste":
+
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
 
         
-        cols_required = ['qty_waso_total_food_produced_tonne', 'qty_agrc_food_produced_lost_sent_to_msw_tonne','factor_waso_waste_per_capita_scalar_food']
+            cols_required = ['qty_waso_total_food_produced_tonne', 'qty_agrc_food_produced_lost_sent_to_msw_tonne','factor_waso_waste_per_capita_scalar_food']
 
-        food_waste_data = data[data["strategy_code"]==cb_orm.strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + cols_required].reset_index(drop = True)
-    
-        #Get teh consumer food waste amount
-        food_waste_data["consumer_food_waste"] = (food_waste_data["qty_waso_total_food_produced_tonne"]) 
-                                            #KLUDGE 07.06/2023
-        #UNCOMMENT THIS LINE WHEN JAMES FIXES WHAT 'qty_waso_total_food_produced_tonne' means
-                                            #Because of a bug, this is already consumer food waste.
-                                        # - food_waste_data$qty_agrc_food_produced_lost_sent_to_msw_tonne)
-
-        #Get how much would have been there
-        food_waste_data["consumer_food_waste_counterfactual"] = food_waste_data["consumer_food_waste"]/food_waste_data["factor_waso_waste_per_capita_scalar_food"]
-
-
-        #get the difference, whic his hte avoided amount
-        food_waste_data["consumer_food_waste_avoided"] = food_waste_data["consumer_food_waste"] - food_waste_data["consumer_food_waste_counterfactual"]
-
-        food_waste_data["consumer_food_waste_avoided2"] = (food_waste_data["qty_waso_total_food_produced_tonne"] - food_waste_data["qty_agrc_food_produced_lost_sent_to_msw_tonne"]) *(1-food_waste_data["factor_waso_waste_per_capita_scalar_food"])/ food_waste_data["factor_waso_waste_per_capita_scalar_food"]
-    
-        food_waste_to_merge = food_waste_data[SSP_GLOBAL_SIMULATION_IDENTIFIERS + ['consumer_food_waste_avoided']]
-
-        outputs = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, 'qty_waso_total_food_produced_tonne')
-
-        merged_data = outputs.merge(right = food_waste_to_merge, on=['strategy_code', 'region', 'time_period'], suffixes=['', '.food'])
-
+            food_waste_data = data[data["strategy_code"]==cb_orm.strategy_code_tx][SSP_GLOBAL_SIMULATION_IDENTIFIERS + cols_required].reset_index(drop = True)
         
-        merged_data["difference_variable"] = 'qty_consumer_food_waste_avoided'
-        merged_data["difference_value"] = merged_data["consumer_food_waste_avoided"]
-        merged_data["variable"] = cb_orm.output_variable_name
-        merged_data["value"] = merged_data["difference_value"] * cb_orm.multiplier
-    
-        merged_data = merged_data[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            #Get teh consumer food waste amount
+            food_waste_data["consumer_food_waste"] = (food_waste_data["qty_waso_total_food_produced_tonne"]) 
+                                                #KLUDGE 07.06/2023
+            #UNCOMMENT THIS LINE WHEN JAMES FIXES WHAT 'qty_waso_total_food_produced_tonne' means
+                                                #Because of a bug, this is already consumer food waste.
+                                            # - food_waste_data$qty_agrc_food_produced_lost_sent_to_msw_tonne)
 
-        return merged_data
+            #Get how much would have been there
+            food_waste_data["consumer_food_waste_counterfactual"] = food_waste_data["consumer_food_waste"]/food_waste_data["factor_waso_waste_per_capita_scalar_food"]
 
+
+            #get the difference, whic his hte avoided amount
+            food_waste_data["consumer_food_waste_avoided"] = food_waste_data["consumer_food_waste"] - food_waste_data["consumer_food_waste_counterfactual"]
+
+            food_waste_data["consumer_food_waste_avoided2"] = (food_waste_data["qty_waso_total_food_produced_tonne"] - food_waste_data["qty_agrc_food_produced_lost_sent_to_msw_tonne"]) *(1-food_waste_data["factor_waso_waste_per_capita_scalar_food"])/ food_waste_data["factor_waso_waste_per_capita_scalar_food"]
+        
+            food_waste_to_merge = food_waste_data[SSP_GLOBAL_SIMULATION_IDENTIFIERS + ['consumer_food_waste_avoided']]
+
+            outputs = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, 'qty_waso_total_food_produced_tonne')
+
+            merged_data = outputs.merge(right = food_waste_to_merge, on=['strategy_code', 'region', 'time_period'], suffixes=['', '.food'])
+
+            
+            merged_data["difference_variable"] = 'qty_consumer_food_waste_avoided'
+            merged_data["difference_value"] = merged_data["consumer_food_waste_avoided"]
+            merged_data["variable"] = cb_orm.output_variable_name
+            merged_data["value"] = merged_data["difference_value"] * cb_orm.multiplier
+        
+            merged_data = merged_data[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+
+            return merged_data
+        
+        else:
+            print("The data cannot be computed with the cb_waso_reduce_consumer_facing_food_waste function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
+        
     #----------LVST: ENTERIC FERMENTATION------------------
     @cb_wrapper
     def cb_lvst_enteric(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_lvst_enteric":
 
-        #define the strategy as the fractino of livestock receivving this intervention in a particular year
-        tx_definition = pd.read_sql(self.session.query(LVSTEntericFermentationTX).statement, self.session.bind)
-        affected_livestock = tx_definition[tx_definition["application"]>0]
-        timesteps = pd.DataFrame({"time_period" : range(SSP_GLOBAL_TIME_PERIODS)})
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
 
-        enteric_pop_fracs = affected_livestock.merge(right=timesteps, how = "cross")
+            #define the strategy as the fractino of livestock receivving this intervention in a particular year
+            tx_definition = pd.read_sql(self.session.query(LVSTEntericFermentationTX).statement, self.session.bind)
+            affected_livestock = tx_definition[tx_definition["application"]>0]
+            timesteps = pd.DataFrame({"time_period" : range(SSP_GLOBAL_TIME_PERIODS)})
 
-        enteric_pop_fracs["application_in_year"] = enteric_pop_fracs["application"]/(SSP_GLOBAL_TIME_PERIODS - SSP_GLOBAL_TIME_PERIOD_TX_START) *(enteric_pop_fracs["time_period"] - SSP_GLOBAL_TIME_PERIOD_TX_START+1)
-        enteric_pop_fracs.loc[(enteric_pop_fracs["time_period"] >=0) & (enteric_pop_fracs["time_period"]<=SSP_GLOBAL_TIME_PERIOD_TX_START-1), "application_in_year"] = 0
+            enteric_pop_fracs = affected_livestock.merge(right=timesteps, how = "cross")
+
+            enteric_pop_fracs["application_in_year"] = enteric_pop_fracs["application"]/(SSP_GLOBAL_TIME_PERIODS - SSP_GLOBAL_TIME_PERIOD_TX_START) *(enteric_pop_fracs["time_period"] - SSP_GLOBAL_TIME_PERIOD_TX_START+1)
+            enteric_pop_fracs.loc[(enteric_pop_fracs["time_period"] >=0) & (enteric_pop_fracs["time_period"]<=SSP_GLOBAL_TIME_PERIOD_TX_START-1), "application_in_year"] = 0
 
 
-        #apply that to the data
-        data_num_livestock = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, affected_livestock["variable"].to_list())
-    
-        data_merged = data_num_livestock.merge(right = enteric_pop_fracs, on = ['variable', 'time_period'])
-        data_merged["difference_variable"] = data_merged["variable"] 
-        data_merged["difference_value"] = data_merged["value"]*data_merged["application_in_year"]
-        #data_merged["variable"] = data_merged["variable"].apply(lambda x : f"{cb_orm.output_variable_name[:-1]}{x}")
-        data_merged["variable"] = cb_orm.output_variable_name
-        data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
-        data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
-    
-        return data_merged 
+            #apply that to the data
+            data_num_livestock = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, affected_livestock["variable"].to_list())
+        
+            data_merged = data_num_livestock.merge(right = enteric_pop_fracs, on = ['variable', 'time_period'])
+            data_merged["difference_variable"] = data_merged["variable"] 
+            data_merged["difference_value"] = data_merged["value"]*data_merged["application_in_year"]
+            #data_merged["variable"] = data_merged["variable"].apply(lambda x : f"{cb_orm.output_variable_name[:-1]}{x}")
+            data_merged["variable"] = cb_orm.output_variable_name
+            data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
+            data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+        
+            return data_merged 
+
+        else:
+            print("The data cannot be computed with the cb_waso_reduce_consumer_facing_food_waste function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     #----------AGRC:RICE------------
     @cb_wrapper
     def cb_agrc_rice_mgmt(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
-        
-        #define the transformation as the fraction of acres receiivng better rice management
-        tx_definition = pd.read_sql(self.session.query(AgrcRiceMGMTTX).statement, self.session.bind)
-        tx_definition["level_of_implementation"] = (1-tx_definition["ef_agrc_anaerobicdom_rice_kg_ch4_ha"])/0.45
-        
-        rice_management_data = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
+        if cb_orm.cb_function == "cb_agrc_rice_mgmt":
 
-        #merge with transformation
-        rice_management_data = rice_management_data.merge(right = tx_definition, on = 'time_period')
-    
-        rice_management_data["difference_variable"] = cb_orm.diff_var #paste0('diff_', diff_var)
-        rice_management_data["difference_value"] = rice_management_data["value"]*rice_management_data["level_of_implementation"]
-        rice_management_data["variable"] = cb_orm.output_variable_name
-        rice_management_data["value"] = rice_management_data["difference_value"]*cb_orm.multiplier
-        rice_management_data = rice_management_data[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
         
-        return rice_management_data
+            #define the transformation as the fraction of acres receiivng better rice management
+            tx_definition = pd.read_sql(self.session.query(AgrcRiceMGMTTX).statement, self.session.bind)
+            tx_definition["level_of_implementation"] = (1-tx_definition["ef_agrc_anaerobicdom_rice_kg_ch4_ha"])/0.45
+            
+            rice_management_data = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
+
+            #merge with transformation
+            rice_management_data = rice_management_data.merge(right = tx_definition, on = 'time_period')
+        
+            rice_management_data["difference_variable"] = cb_orm.diff_var #paste0('diff_', diff_var)
+            rice_management_data["difference_value"] = rice_management_data["value"]*rice_management_data["level_of_implementation"]
+            rice_management_data["variable"] = cb_orm.output_variable_name
+            rice_management_data["value"] = rice_management_data["difference_value"]*cb_orm.multiplier
+            rice_management_data = rice_management_data[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            
+            return rice_management_data
+
+        else:
+            print("The data cannot be computed with the cb_agrc_rice_mgmt function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     #----------AGRCLVST:Productivity----------
     #the economic cost of increasing productivity is equal to
@@ -1167,46 +1320,57 @@ class CostBenefits:
     @cb_wrapper
     def cb_agrc_lvst_productivity(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_agrc_lvst_productivity":
 
-        #Get the gdp data
-        gdp = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, 'gdp_mmm_usd')
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
 
-        #Get the fractions for each country
-        gdp_fracs = pd.read_sql(self.session.query(AgrcLVSTProductivityCostGDP).statement, self.session.bind)
-        gdp_fracs = gdp_fracs.rename(columns = {"cost_of_productivity_improvements_pct_gdp" : "cost_frac"})
+            #Get the gdp data
+            gdp = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, 'gdp_mmm_usd')
 
-        #country codes
-        country_codes = pd.read_sql(self.session.query(CountriesISO).statement, self.session.bind)
+            #Get the fractions for each country
+            gdp_fracs = pd.read_sql(self.session.query(AgrcLVSTProductivityCostGDP).statement, self.session.bind)
+            gdp_fracs = gdp_fracs.rename(columns = {"cost_of_productivity_improvements_pct_gdp" : "cost_frac"})
 
-        gdp_fracs = gdp_fracs.merge(right = country_codes, on = "iso_code3")
-        gdp_fracs = gdp_fracs.rename(columns = {"REGION" : "region"})
-        gdp_fracs = gdp_fracs[['region', 'cost_frac']]
+            #country codes
+            country_codes = pd.read_sql(self.session.query(CountriesISO).statement, self.session.bind)
 
-        #merge wiht gdp
-        gdp = gdp.merge(right=gdp_fracs, on = "region")
-        gdp["difference_variable"] = 'diff_fraction_of_GDP_for_productivity'
-        gdp["difference_value"] = gdp["cost_frac"]
-        gdp["variable"] = cb_orm.output_variable_name
-        gdp["value"] = gdp["value"]*10**9*gdp["cost_frac"]/2*(-1)
+            gdp_fracs = gdp_fracs.merge(right = country_codes, on = "iso_code3")
+            gdp_fracs = gdp_fracs.rename(columns = {"REGION" : "region"})
+            gdp_fracs = gdp_fracs[['region', 'cost_frac']]
 
-        escalar_prod = 1
+            #merge wiht gdp
+            gdp = gdp.merge(right=gdp_fracs, on = "region")
+            gdp["difference_variable"] = 'diff_fraction_of_GDP_for_productivity'
+            gdp["difference_value"] = gdp["cost_frac"]
+            gdp["variable"] = cb_orm.output_variable_name
+            gdp["value"] = gdp["value"]*10**9*gdp["cost_frac"]/2*(-1)
 
-        if cb_orm.strategy_code_tx == 'PFLO:UNCONSTRAINED':
-            escalar_prod = 1.2
+            escalar_prod = 1
+
+            if cb_orm.strategy_code_tx == 'PFLO:UNCONSTRAINED':
+                escalar_prod = 1.2
+            
+            gdp["value"] *= escalar_prod
+
+            gdp.loc[gdp["time_period"]<SSP_GLOBAL_TIME_PERIOD_TX_START, "value"] = 0
         
-        gdp["value"] *= escalar_prod
+            gdp = gdp[SSP_GLOBAL_COLNAMES_OF_RESULTS]
 
-        gdp.loc[gdp["time_period"]<SSP_GLOBAL_TIME_PERIOD_TX_START, "value"] = 0
-    
-        gdp = gdp[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            return gdp
 
-        return gdp
-
+        else:
+            print("The data cannot be computed with the cb_agrc_lvst_productivity function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     #--------------PFLO:BETTER DIETS------------
     #calculate the number of additional people using better diets
@@ -1215,101 +1379,135 @@ class CostBenefits:
     @cb_wrapper
     def cb_pflo_healthier_diets(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_pflo_healthier_diets":
 
-        #Get the population
-        population = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, ['population_gnrl_rural', 'population_gnrl_urban'])
-        
-        vars_to_groupby = ["primary_id", "region", "time_period", "strategy_code", "future_id"]
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
 
-        total_pop = population.groupby(vars_to_groupby).agg({"value" : "sum"}).rename(columns = {"value" : "total_pop"}).reset_index()
+            #Get the population
+            population = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, ['population_gnrl_rural', 'population_gnrl_urban'])
+            
+            vars_to_groupby = ["primary_id", "region", "time_period", "strategy_code", "future_id"]
 
-        #get the file with popualtion fractions  
-        diet_frac = pd.read_sql(self.session.query(PFLOTransitionNewDiets).statement, self.session.bind)
-        
-        data_merged = total_pop.merge(right = diet_frac, on='time_period')
-        data_merged["difference_value"] = data_merged["total_pop"]*(1-data_merged["frac_gnrl_w_original_diet"])
-        data_merged["difference_variable"] = 'pop_with_better_diet'
-        data_merged["variable"] = cb_orm.output_variable_name
-        data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
+            total_pop = population.groupby(vars_to_groupby).agg({"value" : "sum"}).rename(columns = {"value" : "total_pop"}).reset_index()
 
-        data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            #get the file with popualtion fractions  
+            diet_frac = pd.read_sql(self.session.query(PFLOTransitionNewDiets).statement, self.session.bind)
+            
+            data_merged = total_pop.merge(right = diet_frac, on='time_period')
+            data_merged["difference_value"] = data_merged["total_pop"]*(1-data_merged["frac_gnrl_w_original_diet"])
+            data_merged["difference_variable"] = 'pop_with_better_diet'
+            data_merged["variable"] = cb_orm.output_variable_name
+            data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
 
-        return data_merged
+            data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+
+            return data_merged
+
+        else:
+            print("The data cannot be computed with the cb_pflo_healthier_diets function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     #--------------IPPU: CCS ------------------
     @cb_wrapper
     def cb_ippu_inen_ccs(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_ippu_inen_ccs":
+
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
         
-        #get the fraction reductions in CO2
-        ccs_fraction_vars = [i for i in self.ssp_list_of_vars if i.startswith("frac_ippu_production_with_co2_capture_")]
-        ccs_fractions = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, ccs_fraction_vars)
+            #get the fraction reductions in CO2
+            ccs_fraction_vars = [i for i in self.ssp_list_of_vars if i.startswith("frac_ippu_production_with_co2_capture_")]
+            ccs_fractions = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, ccs_fraction_vars)
 
-        #given the global capture rate, update the application fraction
-        ccs_fractions["application_rate"] = ccs_fractions["value"]
+            #given the global capture rate, update the application fraction
+            ccs_fractions["application_rate"] = ccs_fractions["value"]
 
-        #get the quantities of production for those variables
-        production_vars = [i.replace("frac_ippu_production_with_co2_capture_", "prod_ippu_") + "_tonne" for i in ccs_fraction_vars]
-        ccs_fractions["variable"] = ccs_fractions["variable"].apply(lambda x : x.replace("frac_ippu_production_with_co2_capture_", "prod_ippu_") + "_tonne")
-        prod_qty = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, production_vars)
+            #get the quantities of production for those variables
+            production_vars = [i.replace("frac_ippu_production_with_co2_capture_", "prod_ippu_") + "_tonne" for i in ccs_fraction_vars]
+            ccs_fractions["variable"] = ccs_fractions["variable"].apply(lambda x : x.replace("frac_ippu_production_with_co2_capture_", "prod_ippu_") + "_tonne")
+            prod_qty = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, production_vars)
 
-        #merge the two datasets
-        by_merge_vars = ['region', 'strategy_code', 'time_period', 'variable']
-        tx_suffix = "ccs"
-        base_suffix = ""
+            #merge the two datasets
+            by_merge_vars = ['region', 'strategy_code', 'time_period', 'variable']
+            tx_suffix = "ccs"
+            base_suffix = ""
 
-        data_merged = ccs_fractions.merge(right = prod_qty, on =  by_merge_vars, suffixes=(tx_suffix, base_suffix))
+            data_merged = ccs_fractions.merge(right = prod_qty, on =  by_merge_vars, suffixes=(tx_suffix, base_suffix))
 
-        #multiply the production quantity by the fractions
-        data_merged["difference_value"] = data_merged["application_rate"] * data_merged["value"]
-        data_merged["difference_variable"] = data_merged["variable"]
+            #multiply the production quantity by the fractions
+            data_merged["difference_value"] = data_merged["application_rate"] * data_merged["value"]
+            data_merged["difference_variable"] = data_merged["variable"]
 
-        #read the cost definitions
-        ccs_cost_factor = pd.read_sql(self.session.query(IPPUCCSCostFactor).statement, self.session.bind)
+            #read the cost definitions
+            ccs_cost_factor = pd.read_sql(self.session.query(IPPUCCSCostFactor).statement, self.session.bind)
+            
+            data_merged = data_merged.merge(right = ccs_cost_factor, on = 'variable')
+
+            data_merged["value"] = data_merged["difference_value"] * data_merged["multiplier"]
+            data_merged["variable"] = data_merged["output_variable_name"]
         
-        data_merged = data_merged.merge(right = ccs_cost_factor, on = 'variable')
+            data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            
+            return data_merged
 
-        data_merged["value"] = data_merged["difference_value"] * data_merged["multiplier"]
-        data_merged["variable"] = data_merged["output_variable_name"]
-    
-        data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
-        
-        return data_merged
-
+        else:
+            print("The data cannot be computed with the cb_ippu_inen_ccs function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
 
     #---------------Manure Management
     @cb_wrapper
     def cb_manure_management_cost(
                         self,
-                        cb_orm : Union[CostFactor,TransformationCost]
+                        cb_orm : Union[CostFactor,TransformationCost],
+                        data_baseline : Union[pd.DataFrame, None] = None,
+                        data_tx :  Union[pd.DataFrame, None] = None                        
                         ) -> pd.DataFrame:
         
-        # Obtenemos datos de las salidas de ssp
-        data = self.ssp_data.copy()
+        if cb_orm.cb_function == "cb_manure_management_cost":
 
-        #time_period = range(SSP_GLOBAL_TIME_PERIODS)
-        implementation = [0]*11 + list(np.linspace(0, 0.95, SSP_GLOBAL_TIME_PERIODS - 11))
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+                # Obtenemos datos de las salidas de ssp
+                data = pd.concat([data_baseline, data_tx], ignore_index = True)
+            else:
+                # Obtenemos datos de las salidas de ssp
+                data = self.ssp_data.copy()
+        
 
-        manure_imp = pd.DataFrame({"implementation" : implementation})
+            #time_period = range(SSP_GLOBAL_TIME_PERIODS)
+            implementation = [0]*11 + list(np.linspace(0, 0.95, SSP_GLOBAL_TIME_PERIODS - 11))
 
-        tlus = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
-        tlus = pd.concat([tlus, manure_imp], axis = 1)
-        tlus["difference_variable"] = cb_orm.diff_var
-        tlus["difference_value"] = tlus["value"]*tlus["implementation"]
-        tlus["value"] = tlus["difference_value"]*cb_orm.multiplier
-        tlus["variable"] = cb_orm.output_variable_name
-        tlus = tlus[SSP_GLOBAL_COLNAMES_OF_RESULTS]
+            manure_imp = pd.DataFrame({"implementation" : implementation})
 
-        return tlus.dropna()
+            tlus = self.cb_get_data_from_wide_to_long(data, cb_orm.strategy_code_tx, cb_orm.diff_var)
+            tlus = pd.concat([tlus, manure_imp], axis = 1)
+            tlus["difference_variable"] = cb_orm.diff_var
+            tlus["difference_value"] = tlus["value"]*tlus["implementation"]
+            tlus["value"] = tlus["difference_value"]*cb_orm.multiplier
+            tlus["variable"] = cb_orm.output_variable_name
+            tlus = tlus[SSP_GLOBAL_COLNAMES_OF_RESULTS]
 
+            return tlus.dropna()
 
+        else:
+            print("The data cannot be computed with the cb_manure_management_cost function" + f"\nYou must use the {cb_orm.cb_function} function")
+            return None
