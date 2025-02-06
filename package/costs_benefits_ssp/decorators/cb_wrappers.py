@@ -1,7 +1,7 @@
 import functools
 import pandas as pd
 import re 
-from typing import Union
+from typing import Union,Dict
 
 def cb_wrapper(func): 
     @functools.wraps(func)
@@ -10,7 +10,8 @@ def cb_wrapper(func):
                           cb_var_name : Union[str, None] = None,
                           strategy_code_tx : Union[str, None] = None,
                           data_baseline : Union[pd.DataFrame, None] = None,
-                          data_tx :  Union[pd.DataFrame, None] = None   
+                          data_tx :  Union[pd.DataFrame, None] = None,
+                          cb_var_fields : Union[Dict[str, Union[float,int,str]], None] = None   
                           ):
         
         if cb_var_name:
@@ -43,6 +44,11 @@ def cb_wrapper(func):
 
                 print("La TX no se encuentra en la estrategia")
                 return pd.DataFrame()
+
+        ## Actualizamos los campos del registro si recibimos el diccionario cb_var_fields
+        if isinstance(cb_var_fields, dict):
+            self.update_cost_factor_register(cb_var_name = cb_var_name, 
+                                        cb_var_fields = cb_var_fields)
 
         ## Get all variable matches on difference_variable
         diff_var = cb_orm.difference_variable.replace("*", ".*")

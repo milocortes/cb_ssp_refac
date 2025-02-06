@@ -321,7 +321,8 @@ class CostBenefits:
                         strategy_code_base : Union[str,None] = None,
                         verbose : bool = True,
                         data_baseline : Union[pd.DataFrame, None] = None,
-                        data_tx :  Union[pd.DataFrame, None] = None
+                        data_tx :  Union[pd.DataFrame, None] = None,
+                        cb_var_fields : Union[Dict[str, Union[float,int,str]], None] = None
                         ) -> pd.DataFrame:
 
         ## Obteniendo registro de la db
@@ -335,6 +336,11 @@ class CostBenefits:
             cb_orm.strategy_code_base = strategy_code_base
         else:
             cb_orm.strategy_code_base = self.strategy_code_base 
+
+        ## Actualizamos los campos del registro si recibimos el diccionario cb_var_fields
+        if isinstance(cb_var_fields, dict):
+            self.update_cost_factor_register(cb_var_name = cb_var_name, 
+                                        cb_var_fields = cb_var_fields)
 
         if verbose:
             print("---------Costs for: {cb_orm.output_variable_name}.".format(cb_orm=cb_orm))
@@ -800,7 +806,7 @@ class CostBenefits:
             
             return data_merged
         else:
-            print("The data cannot be computed with the cb_difference_between_two_strategies function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_difference_between_two_strategies function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     # ---------------------------------------------
@@ -848,7 +854,7 @@ class CostBenefits:
         
             return output 
         else:
-            print("The data cannot be computed with the cb_scale_variable_in_strategy function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_scale_variable_in_strategy function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     # ---------------------------------------------
@@ -923,7 +929,7 @@ class CostBenefits:
             return data_merged_results
 
         else:
-            print("The data cannot be computed with the cb_fraction_change function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_fraction_change function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     #----------ENTC:REDUCE_LOSSES: Technical cost of maintaining grid ----------
@@ -967,7 +973,7 @@ class CostBenefits:
             return data_output
         
         else:
-            print("The data cannot be computed with the cb_entc_reduce_losses function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_entc_reduce_losses function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     #----------IPPU:CLINKER------------------}
@@ -1032,7 +1038,7 @@ class CostBenefits:
             return data_output
 
         else:
-            print("The data cannot be computed with the cb_ippu_clinker function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_ippu_clinker function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     #----------IPPU:FGASES-------------------
@@ -1082,7 +1088,7 @@ class CostBenefits:
             #return result
             return data_fgases_merged
         else:
-            print("The data cannot be computed with the cb_ippu_florinated_gases function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_ippu_florinated_gases function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
 
@@ -1161,7 +1167,7 @@ class CostBenefits:
 
             return data_merged
         else:
-            print("The data cannot be computed with the cb_fgtv_abatement_costs function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_fgtv_abatement_costs function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
         
     #----------WASO:WASTE REDUCTION TECHNICAL COSTS------------------
@@ -1226,7 +1232,7 @@ class CostBenefits:
             return merged_data
         
         else:
-            print("The data cannot be computed with the cb_waso_reduce_consumer_facing_food_waste function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_waso_reduce_consumer_facing_food_waste function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
         
     #----------LVST: ENTERIC FERMENTATION------------------
@@ -1272,7 +1278,7 @@ class CostBenefits:
             return data_merged 
 
         else:
-            print("The data cannot be computed with the cb_waso_reduce_consumer_facing_food_waste function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_waso_reduce_consumer_facing_food_waste function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     #----------AGRC:RICE------------
@@ -1311,7 +1317,7 @@ class CostBenefits:
             return rice_management_data
 
         else:
-            print("The data cannot be computed with the cb_agrc_rice_mgmt function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_agrc_rice_mgmt function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     #----------AGRCLVST:Productivity----------
@@ -1369,7 +1375,7 @@ class CostBenefits:
             return gdp
 
         else:
-            print("The data cannot be computed with the cb_agrc_lvst_productivity function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_agrc_lvst_productivity function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     #--------------PFLO:BETTER DIETS------------
@@ -1414,7 +1420,7 @@ class CostBenefits:
             return data_merged
 
         else:
-            print("The data cannot be computed with the cb_pflo_healthier_diets function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_pflo_healthier_diets function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     #--------------IPPU: CCS ------------------
@@ -1471,7 +1477,7 @@ class CostBenefits:
             return data_merged
 
         else:
-            print("The data cannot be computed with the cb_ippu_inen_ccs function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_ippu_inen_ccs function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
 
     #---------------Manure Management
@@ -1509,5 +1515,5 @@ class CostBenefits:
             return tlus.dropna()
 
         else:
-            print("The data cannot be computed with the cb_manure_management_cost function" + f"\nYou must use the {cb_orm.cb_function} function")
+            print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_manure_management_cost function" + f"\nYou must use the {cb_orm.cb_function} function instead")
             return None
