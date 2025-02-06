@@ -1,11 +1,49 @@
 import functools
 import pandas as pd
 import re 
+from typing import Union
 
 def cb_wrapper(func): 
     @functools.wraps(func)
-    def wrapper_decorator(self,cb_orm):
+    def wrapper_decorator(self,
+                          cb_orm = None,
+                          cb_var_name : Union[str, None] = None,
+                          strategy_code_tx : Union[str, None] = None,
+                          data_baseline : Union[pd.DataFrame, None] = None,
+                          data_tx :  Union[pd.DataFrame, None] = None   
+                          ):
         
+        if cb_var_name:
+          ## Obteniendo registro de la db
+          cb_orm = self.get_cb_var_fields(cb_var_name)
+
+          ## Agregamos como atributo la estrategia a comparar
+          if strategy_code_tx : cb_orm.strategy_code_tx = strategy_code_tx
+
+          cb_orm.strategy_code_base = self.strategy_code_base
+
+          print("---------Costs for: {cb_orm.output_variable_name}.".format(cb_orm=cb_orm))
+
+          if cb_orm.tx_table.cost_type == "system_cost":
+              print("La variable se evalúa en System Cost")
+
+              if cb_orm.cb_var_group == 'wali_sanitation_cost_factors' or cb_orm.cb_var_group == 'wali_benefit_of_sanitation_cost_factors':
+                cb_orm.cb_function = 'cb_difference_between_two_strategies'
+              
+              if cb_orm.cb_function=="cb:enfu:fuel_cost:X:X":
+
+                cb_orm.cb_function = 'cb_difference_between_two_strategies'
+              
+
+          elif cb_orm.tx_table.cost_type == "transformation_cost":
+              
+              print("La variable se evalúa en Transformation Cost")
+              
+              if not(self.tx_in_strategy(cb_orm.transformation_code, cb_orm.strategy_code_tx)):
+
+                print("La TX no se encuentra en la estrategia")
+                return pd.DataFrame()
+
         ## Get all variable matches on difference_variable
         diff_var = cb_orm.difference_variable.replace("*", ".*")
         diff_var_list = [string for string in self.ssp_list_of_vars if  re.match(re.compile(diff_var), string)]
@@ -19,7 +57,11 @@ def cb_wrapper(func):
 
         for diff_var_param in diff_var_list:
             cb_orm.diff_var = diff_var_param
-            result = func(self, cb_orm)
+            
+            if isinstance(data_baseline, pd.DataFrame) and isinstance(data_tx, pd.DataFrame):
+              result = func(self, cb_orm = cb_orm, data_baseline = data_baseline, data_tx = data_tx)
+            else: 
+              result = func(self, cb_orm = cb_orm)
             result_tmp.append(result)
 
         # If flagged, sum up the variables in value and difference_value columns
@@ -35,8 +77,11 @@ def cb_wrapper(func):
           return results_summarized.sort_values(["difference_variable", "time_period"])
           
         else:
-          appended_results = pd.concat(result_tmp, ignore_index = True)
-          return appended_results.sort_values(["difference_variable", "time_period"])
+          if not all(elem is None for elem in result_tmp):
+            appended_results = pd.concat(result_tmp, ignore_index = True)
+            return appended_results.sort_values(["difference_variable", "time_period"])
+          else:
+            return None
 
     return wrapper_decorator 
 
