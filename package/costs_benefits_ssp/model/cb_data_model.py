@@ -51,8 +51,21 @@ class TransformationCost(Base):
     tx_table =  relationship("TXTable", backref=backref('transformation_costs', order_by=output_variable_name))
 
     def __repr__(self):
-        return "TransformationCost(output_variable_name={self.output_variable_name}, " \
-                      "transformation_code={self.transformation_code})".format(self=self)
+        return "TransformationCost(\n\t\toutput_variable_name = {self.output_variable_name}," \
+                        "\n\t\ttransformation_code = {self.transformation_code},"\
+                        "\n\t\tinclude = {self.include},"\
+                        "\n\t\tinclude_variant = {self.include_variant},"\
+                        "\n\t\ttest_id_variant_suffix = {self.test_id_variant_suffix},"\
+                        "\n\t\tcomparison_id_variant = {self.comparison_id_variant},"\
+                        "\n\t\tcb_function = {self.cb_function},"\
+                        "\n\t\tdifference_variable = {self.difference_variable},"\
+                        "\n\t\tmultiplier = {self.multiplier},"\
+                        "\n\t\tmultiplier_unit = {self.multiplier_unit},"\
+                        "\n\t\tannual_change = {self.annual_change},"\
+                        "\n\t\targ1 = {self.arg1},"\
+                        "\n\t\targ2 = {self.arg2},"\
+                        "\n\t\tsum = {self.sum},"\
+                        "\n\t\tnatural_multiplier_units = {self.natural_multiplier_units}) ".format(self=self)
 
 
 class StrategyInteraction(Base):
