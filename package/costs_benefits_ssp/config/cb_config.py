@@ -1,5 +1,6 @@
 #set globally the variables for analaysis
-SSP_GLOBAL_COLNAMES_OF_RESULTS = ['strategy_code', 'future_id', 'region', 'time_period', 'difference_variable', 'difference_value', 'variable', 'value']
+#SSP_GLOBAL_COLNAMES_OF_RESULTS = ['strategy_code', 'future_id', 'region', 'time_period', 'difference_variable', 'difference_value', 'variable', 'value']
+SSP_GLOBAL_COLNAMES_OF_RESULTS = ['strategy_code', 'future_id', 'region', 'time_period', 'difference_variable', 'variable_value_baseline', 'variable_value_pathway', 'difference_value', 'variable', 'value']
 SSP_GLOBAL_SIMULATION_IDENTIFIERS = ['primary_id', 'strategy_code', 'region', 'time_period', 'future_id']
 SSP_GLOBAL_SIMULATION_LONG_COLS = ['primary_id', 'strategy_code', 'region', 'time_period', 'variable', 'value']
 

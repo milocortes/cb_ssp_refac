@@ -76,7 +76,13 @@ def cb_wrapper(func):
 
         if cb_orm.sum == 1:          
           result_tmp = pd.concat(result_tmp, ignore_index = True)
-          results_summarized = result_tmp.groupby(["region", "time_period", "strategy_code", "future_id"]).agg({"value" : "sum", "difference_value" : "sum"}).reset_index()
+          llaves_gb = ["region", "time_period", "strategy_code", "future_id"]
+
+          results_summarized = result_tmp.groupby(llaves_gb).agg({"value" : "sum", 
+                                                                  "difference_value" : "sum",
+                                                                  "variable_value_baseline" : "sum",
+                                                                  "variable_value_pathway" : "sum"}).reset_index()
+                                                                  
           results_summarized["difference_variable"] = cb_orm.diff_var
           results_summarized["variable"] = cb_orm.output_variable_name
 

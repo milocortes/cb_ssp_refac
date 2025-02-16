@@ -633,6 +633,9 @@ class CostBenefits:
                 res_subset["value"] = res_subset["value"] * res_subset["newscalar"]
                 res_subset["difference_value"] = res_subset["difference_value"] * res_subset["newscalar"]
 
+                res_subset["variable_value_baseline"] = res_subset["variable_value_baseline"] * res_subset["newscalar"]
+                res_subset["variable_value_pathway"] = res_subset["variable_value_pathway"] * res_subset["newscalar"]
+
                 #make a replacement dataset
                 res_for_replacement = res_subset[SSP_GLOBAL_COLNAMES_OF_RESULTS]
 
@@ -802,6 +805,10 @@ class CostBenefits:
 
             data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier*cb_orm.annual_change**data_merged["time_period_for_multiplier_change"]
 
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            data_merged['variable_value_baseline'] =  data_merged[f"{cb_orm.diff_var}{base_suffix}"]
+            data_merged['variable_value_pathway'] = data_merged[f"{cb_orm.diff_var}{tx_suffix}"]
+
             data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
             
             return data_merged
@@ -850,6 +857,12 @@ class CostBenefits:
             tmp["difference_value"] = data_merged["difference"]
             tmp["variable"] = cb_orm.output_variable_name
             tmp["value"] = data_merged["values"]
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline
+            tmp['variable_value_baseline'] = 0
+            tmp['variable_value_pathway'] = tmp["difference"]
+
             output = tmp.copy()
         
             return output 
@@ -925,7 +938,11 @@ class CostBenefits:
             #any divide-by-zero NAs from our earlier division gets a 0
             data_merged_results = data_merged_results.replace(np.nan, 0.0)
             
-            
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline
+            data_merged_results['variable_value_baseline'] = 0 
+            data_merged_results['variable_value_pathway'] = data_merged["difference_value"]
+
             return data_merged_results
 
         else:
@@ -967,7 +984,12 @@ class CostBenefits:
             data_output["value"] = data_output["annual_investment_USD"]
             data_output["difference_variable"] = 'N/A (constant annual cost)'
             data_output["difference_value"] = data_output["annual_investment_USD"]
-        
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline y en el pathway
+            data_output['variable_value_baseline'] = 0 
+            data_output['variable_value_pathway'] = 0
+
             data_output = data_output[SSP_GLOBAL_COLNAMES_OF_RESULTS] 
         
             return data_output
@@ -1034,7 +1056,12 @@ class CostBenefits:
             
                 
             data_output = data_merged[diff_clinker.columns.to_list()]
-                
+            
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline
+            data_output['variable_value_baseline'] = 0 
+            data_output['variable_value_pathway'] = data_merged["difference_value"]
+
             return data_output
 
         else:
@@ -1084,7 +1111,11 @@ class CostBenefits:
             data_fgases_merged["value"] = data_fgases_merged["difference_value"]*cb_orm.multiplier
         
             data_fgases_merged = data_fgases_merged[["region","time_period","strategy_code", "difference_variable", "difference_value","variable","value"]]
-        
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            data_fgases_merged['variable_value_baseline'] = data_fgases_merged["difference_value.base"]
+            data_fgases_merged['variable_value_pathway'] = data_fgases_merged["difference_value"]
+
             #return result
             return data_fgases_merged
         else:
@@ -1165,6 +1196,10 @@ class CostBenefits:
             #8. If tehre are NANs or NAs in the value, replace them with 0.
             data_merged.replace(np.nan, 0.0)
 
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            data_merged['variable_value_baseline'] = data_merged["fgtv_co2e_expected_per_demand"]
+            data_merged['variable_value_pathway'] = data_merged["value.fg_tx"] 
+
             return data_merged
         else:
             print(f"The variable {cb_orm.output_variable_name} cannot be computed with the cb_fgtv_abatement_costs function" + f"\nYou must use the {cb_orm.cb_function} function instead")
@@ -1226,7 +1261,11 @@ class CostBenefits:
             merged_data["difference_value"] = merged_data["consumer_food_waste_avoided"]
             merged_data["variable"] = cb_orm.output_variable_name
             merged_data["value"] = merged_data["difference_value"] * cb_orm.multiplier
-        
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            merged_data['variable_value_baseline'] = food_waste_data["consumer_food_waste_counterfactual"]
+            merged_data['variable_value_pathway'] = food_waste_data["consumer_food_waste"]
+
             merged_data = merged_data[SSP_GLOBAL_COLNAMES_OF_RESULTS]
 
             return merged_data
@@ -1274,7 +1313,12 @@ class CostBenefits:
             data_merged["variable"] = cb_orm.output_variable_name
             data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
             data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
-        
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline
+            data_merged['variable_value_baseline'] = 0 
+            data_merged['variable_value_pathway'] = data_merged["difference_value"]
+
             return data_merged 
 
         else:
@@ -1312,6 +1356,12 @@ class CostBenefits:
             rice_management_data["difference_value"] = rice_management_data["value"]*rice_management_data["level_of_implementation"]
             rice_management_data["variable"] = cb_orm.output_variable_name
             rice_management_data["value"] = rice_management_data["difference_value"]*cb_orm.multiplier
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline
+            rice_management_data['variable_value_baseline'] = 0 
+            rice_management_data['variable_value_pathway'] = rice_management_data["difference_value"]
+
             rice_management_data = rice_management_data[SSP_GLOBAL_COLNAMES_OF_RESULTS]
             
             return rice_management_data
@@ -1369,7 +1419,11 @@ class CostBenefits:
             gdp["value"] *= escalar_prod
 
             gdp.loc[gdp["time_period"]<SSP_GLOBAL_TIME_PERIOD_TX_START, "value"] = 0
-        
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline y en el pathway
+            gpd['variable_value_baseline'] = 0
+            gpd['variable_value_pathway'] = 0
             gdp = gdp[SSP_GLOBAL_COLNAMES_OF_RESULTS]
 
             return gdp
@@ -1414,6 +1468,11 @@ class CostBenefits:
             data_merged["difference_variable"] = 'pop_with_better_diet'
             data_merged["variable"] = cb_orm.output_variable_name
             data_merged["value"] = data_merged["difference_value"]*cb_orm.multiplier
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline
+            data_merged['variable_value_baseline'] = 0 
+            data_merged['variable_value_pathway'] = data_merged["difference_value"]
 
             data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
 
@@ -1471,7 +1530,12 @@ class CostBenefits:
 
             data_merged["value"] = data_merged["difference_value"] * data_merged["multiplier"]
             data_merged["variable"] = data_merged["output_variable_name"]
-        
+
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline y pathway
+            data_merged['variable_value_baseline'] = 0 
+            data_merged['variable_value_pathway'] = 0
+
             data_merged = data_merged[SSP_GLOBAL_COLNAMES_OF_RESULTS]
             
             return data_merged
@@ -1510,6 +1574,12 @@ class CostBenefits:
             tlus["difference_value"] = tlus["value"]*tlus["implementation"]
             tlus["value"] = tlus["difference_value"]*cb_orm.multiplier
             tlus["variable"] = cb_orm.output_variable_name
+            
+            ## Agregamos usado para calcular la diferencia en la estrategia baseline y el pathway
+            ## En este caso, se pondrá cero en el valor del baseline
+            tlus['variable_value_baseline'] = 0
+            tlus['variable_value_pathway'] = tlus["difference_value"]
+
             tlus = tlus[SSP_GLOBAL_COLNAMES_OF_RESULTS]
 
             return tlus.dropna()
